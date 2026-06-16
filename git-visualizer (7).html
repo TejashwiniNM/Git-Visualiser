@@ -1,0 +1,2095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Interactive Git visualizer — learn Git commands from init to rebase with a live simulated GitHub repo, guided tour, and hands-on challenges.">
+<title>Git Visualizer — Learn Git Step by Step</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#eef1f8;--panel:#ffffff;--border:#d7dceb;--green:#166f30;--green-light:#1f8f3e;
+  --blue:#085fc4;--blue-dim:#0550ae;--text:#1c2333;--text-dim:#57606f;--text-muted:#636b7d;
+  --red:#b91c28;--orange:#855a00;--purple:#6f3dd1;--yellow:#8f5500;--header:#f3f5fb;
+  --term-bg:#161b22;--term-border:#30363d;--term-text:#c9d1d9;--term-dim:#8b949e;
+  --term-green:#3fb950;--term-blue:#58a6ff;--term-orange:#d29922;--term-red:#f85149;
+}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── TOPBAR ── */
+.topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:0 18px;height:50px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.topbar-logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:15px;color:var(--text)}
+.topbar-logo svg{width:24px;height:24px;fill:var(--text)}
+.step-label{font-size:12px;color:var(--text-dim);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:380px}
+.step-badge{font-size:10px;font-weight:700;padding:2px 9px;border-radius:20px;flex-shrink:0;background:var(--green);color:#fff}
+.btn-guide{background:transparent;border:1px solid var(--border);color:var(--text-dim);padding:5px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-family:'Inter',sans-serif;transition:all .2s;flex-shrink:0}
+.btn-guide:hover{border-color:var(--blue);color:var(--blue)}
+
+/* ── MAIN LAYOUT ── */
+.main{display:flex;flex:1;overflow:hidden}
+
+/* ── LEFT PANEL ── */
+.left-panel{width:380px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.lp-header{padding:9px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;color:var(--text-muted);letter-spacing:.07em;text-transform:uppercase;background:var(--header);flex-shrink:0}
+.mac-dot{width:10px;height:10px;border-radius:50%}
+.cmd-list{overflow-y:auto;flex:1;padding:8px 10px}
+.cmd-list::-webkit-scrollbar{width:4px}
+.cmd-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.section-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--text-muted);padding:10px 4px 4px}
+.cmd-card{background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:9px 11px;margin-bottom:5px;cursor:pointer;transition:border-color .15s,background .15s;display:flex;align-items:flex-start;gap:9px;position:relative}
+.cmd-card:hover{border-color:var(--blue);background:#f3f5fb}
+.cmd-card.active{border-color:var(--green)!important;background:#e6f7ea!important}
+.cmd-card.suggested{border-color:var(--yellow)!important;background:#fff8e1!important}
+.cmd-card.suggested::after{content:'👉 Try Next';position:absolute;right:7px;top:7px;background:var(--yellow);color:#000;font-size:9px;font-weight:700;padding:1px 5px;border-radius:8px;pointer-events:none}
+.cmd-card.danger-card{border-left:3px solid var(--red)!important}
+.card-icon{font-size:15px;flex-shrink:0;margin-top:1px}
+.card-body{flex:1;min-width:0}
+.card-name{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--green);margin-bottom:2px;line-height:1.3}
+.card-desc{font-size:10px;color:var(--text-dim);line-height:1.4}
+.card-badge{font-size:8px;font-weight:700;padding:1px 5px;border-radius:8px;text-transform:uppercase;flex-shrink:0;margin-top:2px;align-self:flex-start}
+.b-setup,.b-basic{background:#e6f7ea;color:var(--green);border:1px solid #9ae6b4}
+.b-remote{background:#ddeeff;color:var(--blue);border:1px solid #a8d4ff}
+.b-branch{background:#f0e4ff;color:var(--purple);border:1px solid #d9b8ff}
+.b-undo{background:#fff3d6;color:var(--orange);border:1px solid #ffd980}
+.b-advanced{background:#fff3d6;color:var(--yellow);border:1px solid #ffd980}
+.b-expert{background:#ffd6d6;color:var(--red);border:1px solid #ffb3b3}
+.danger-pill{position:absolute;right:7px;bottom:6px;font-size:8px;font-weight:700;background:#ffd6d6;color:var(--red);border:1px solid #ffb3b3;padding:1px 5px;border-radius:8px}
+
+/* ── BOTTOM ACTION AREA ── */
+.action-area{border-top:1px solid var(--border);background:var(--header);flex-shrink:0}
+/* Info card */
+.info-card{padding:10px 14px;border-bottom:1px solid var(--border);display:none}
+.info-card.visible{display:block}
+.info-syntax{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:600;color:var(--green);margin-bottom:3px}
+.info-desc{font-size:11px;color:var(--text-dim);line-height:1.5;margin-bottom:5px}
+.info-tags{display:flex;gap:5px;flex-wrap:wrap}
+.itag{font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;text-transform:uppercase}
+.itag-safe{background:#d4f4dd;color:#166f30;border:1px solid #9ae6b4}
+.itag-warn{background:#fff3d6;color:var(--orange);border:1px solid #ffd980}
+.itag-danger{background:#ffd6d6;color:var(--red);border:1px solid #ffb3b3}
+/* Next step chips */
+.next-panel{padding:8px 14px;border-bottom:1px solid var(--border);display:none}
+.next-panel.visible{display:block}
+.next-title{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--yellow);margin-bottom:5px}
+.next-chips{display:flex;flex-wrap:wrap;gap:4px}
+.next-chip{background:#fff8e1;border:1px solid #ffd980;color:var(--yellow);font-family:'JetBrains Mono',monospace;font-size:9px;padding:2px 8px;border-radius:10px;cursor:pointer;transition:all .15s}
+.next-chip:hover{background:#fff8e1;border-color:var(--yellow)}
+/* Terminal display */
+.terminal-row{display:flex;align-items:center;background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:6px 10px;gap:8px;margin:10px 14px 8px}
+.term-prompt{color:var(--green);font-family:'JetBrains Mono',monospace;font-size:12px;flex-shrink:0}
+.term-display{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* CLI input (optional, collapsed by default) */
+.cli-row{display:flex;align-items:center;background:var(--bg);border:1px dashed var(--border);border-radius:5px;padding:5px 10px;gap:8px;margin:0 14px 8px;transition:border-color .15s}
+.cli-row:focus-within{border-color:var(--green);border-style:solid}
+.cli-prompt{color:var(--text-muted);font-family:'JetBrains Mono',monospace;font-size:11px;flex-shrink:0}
+.cli-input{background:transparent;border:none;outline:none;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text);flex:1;caret-color:var(--green)}
+.cli-input::placeholder{color:var(--text-muted);font-size:10px}
+/* Action buttons row */
+.btn-row{display:flex;gap:8px;padding:0 14px 10px}
+.btn-run{background:var(--green);color:#fff;border:none;padding:8px 0;border-radius:6px;cursor:pointer;font-size:13px;font-weight:600;font-family:'Inter',sans-serif;flex:1;transition:background .2s;display:flex;align-items:center;justify-content:center;gap:6px}
+.btn-run:hover{background:var(--green-light)}
+.btn-run:disabled{background:var(--text-muted);cursor:not-allowed}
+.btn-prev{background:var(--panel);border:1px solid var(--border);color:var(--text-dim);padding:8px 14px;border-radius:6px;cursor:pointer;font-size:12px;font-family:'Inter',sans-serif;transition:all .2s;flex-shrink:0;white-space:nowrap}
+.btn-prev:hover:not(:disabled){border-color:var(--blue);color:var(--blue)}
+.btn-prev:disabled{opacity:.35;cursor:not-allowed}
+/* Progress dots */
+.progress-row{padding:6px 14px 8px;display:flex;align-items:center;gap:3px;flex-wrap:wrap}
+.p-dot{width:6px;height:6px;border-radius:50%;background:var(--border);cursor:pointer;transition:background .2s;flex-shrink:0}
+.p-dot.done{background:var(--green)}
+.p-dot.cur{background:var(--blue);width:16px;border-radius:3px}
+
+/* ── RIGHT PANEL ── */
+.right-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.repo-topbar{background:var(--panel);border-bottom:1px solid var(--border);padding:9px 20px;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.repo-owner{color:var(--blue);font-size:13px;font-weight:500}
+.repo-slash{color:var(--text-muted);font-size:15px}
+.repo-name{color:var(--blue);font-size:13px;font-weight:700}
+.repo-vis{border:1px solid var(--border);color:var(--text-dim);font-size:10px;padding:1px 7px;border-radius:20px}
+.remote-ind{margin-left:auto;font-size:11px;color:var(--text-muted)}
+.repo-tabs{display:flex;border-bottom:1px solid var(--border);padding:0 20px;background:var(--panel);flex-shrink:0;overflow-x:auto}
+.repo-tabs::-webkit-scrollbar{height:0}
+.rtab{padding:8px 13px;font-size:12px;color:var(--text-dim);cursor:pointer;border:none;border-bottom:2px solid transparent;white-space:nowrap;transition:color .15s;background:transparent;font-family:'Inter',sans-serif}
+.rtab.active{color:var(--text);border-bottom-color:var(--orange)}
+.rtab:hover{color:var(--text)}
+.rtab:focus-visible{outline:2px solid var(--blue);outline-offset:-2px}
+.repo-body{flex:1;overflow-y:auto;padding:16px 20px}
+.repo-body::-webkit-scrollbar{width:5px}
+.repo-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* FILE TREE */
+.code-bar{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.branch-pill{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:4px 10px;border-radius:6px;font-size:12px;display:flex;align-items:center;gap:5px}
+.file-tree{background:var(--panel);border:1px solid var(--border);border-radius:6px;overflow:hidden;margin-bottom:12px}
+.ft-head{display:grid;grid-template-columns:1fr 150px 65px;padding:6px 13px;border-bottom:1px solid var(--border);font-size:11px;color:var(--text-dim);background:var(--header)}
+.ft-row{display:grid;grid-template-columns:1fr 150px 65px;padding:7px 13px;border-bottom:1px solid var(--border);font-size:12px;align-items:center;transition:background .15s}
+.ft-row:last-child{border-bottom:none}
+.ft-row:hover{background:var(--header)}
+.ft-name{display:flex;align-items:center;gap:6px;color:var(--blue)}
+.ft-msg{color:var(--text-dim);font-size:11px}
+.ft-time{color:var(--text-muted);font-size:11px}
+@keyframes rowIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:translateY(0)}}
+.ft-row{animation:rowIn .25s ease}
+
+/* COMMIT GRAPH */
+.graph-wrap{overflow-x:auto;margin-bottom:12px}
+.commit-detail-list{margin-top:10px}
+.commit-item{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:8px 12px;margin-bottom:4px;display:flex;align-items:center;gap:9px;transition:background .15s}
+.commit-item:hover{background:var(--header)}
+.c-hash{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--blue);background:#ddeeff;padding:2px 6px;border-radius:4px;flex-shrink:0}
+.c-msg{flex:1;font-size:12px;color:var(--text)}
+.c-author{font-size:11px;color:var(--text-dim);flex-shrink:0}
+.c-time{font-size:11px;color:var(--text-muted);flex-shrink:0}
+
+/* BRANCH VIEW */
+.branch-box{background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:13px;margin-bottom:12px}
+.branch-box-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.07em;color:var(--text-muted);margin-bottom:10px}
+.branch-item{display:flex;align-items:center;gap:8px;font-family:'JetBrains Mono',monospace;font-size:12px;padding:5px 7px;border-radius:4px;transition:background .15s}
+.branch-item:hover{background:var(--header)}
+.b-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* ZONE VIEW */
+.zone-page{padding:0;display:flex;flex-direction:column;gap:14px}
+.zone-header{font-size:14px;font-weight:700;color:var(--text)}
+.zone-sub{font-size:11px;color:var(--text-dim);margin-top:2px}
+.zones-grid{display:grid;grid-template-columns:1fr auto 1fr auto 1fr auto 1fr;gap:0;align-items:center}
+.zone-cell{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:11px 9px;display:flex;flex-direction:column;align-items:center;gap:5px;min-height:110px}
+.zone-lbl{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;text-align:center;margin-bottom:3px}
+.zone-arrow{text-align:center;color:var(--text-muted);font-size:18px;padding:0 4px}
+.zone-cmd{font-size:9px;font-family:'JetBrains Mono',monospace;color:var(--text-muted);margin-top:auto;text-align:center}
+.f-node{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:14px;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace;border:1px solid;margin:1px 0}
+.f-untracked{background:#fff3d6;border-color:#ffd980;color:var(--orange)}
+.f-staged{background:#d4f4dd;border-color:#9ae6b4;color:#166f30}
+.f-committed{background:#ddeeff;border-color:#a8d4ff;color:var(--blue)}
+.f-remote{background:#f0e4ff;border-color:#d9b8ff;color:var(--purple)}
+.zone-empty{font-size:10px;color:var(--text-muted);font-style:italic;text-align:center}
+.zone-flow-table{background:var(--panel);border:1px solid var(--border);border-radius:6px;overflow:hidden}
+.zft-row{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:1px solid var(--border);font-size:11px}
+.zft-row:last-child{border-bottom:none}
+.zft-cmd{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green);width:130px;flex-shrink:0}
+.zft-from{color:var(--text-dim);flex:1}.zft-arr{color:var(--text-muted)}.zft-to{color:var(--text-dim);flex:1}
+.zone-summary{display:flex;flex-wrap:wrap;gap:8px;font-size:11px}
+.zsitem{display:flex;align-items:center;gap:5px}
+.zsdot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+
+/* OUTPUT PANEL */
+.out-panel{background:var(--term-bg);border-top:1px solid var(--term-border);height:125px;flex-shrink:0;display:flex;flex-direction:column}
+.out-header{padding:5px 13px;border-bottom:1px solid var(--term-border);font-size:10px;font-weight:700;color:var(--term-dim);text-transform:uppercase;letter-spacing:.05em;display:flex;align-items:center}
+.out-scroll{flex:1;overflow-y:auto;padding:6px 13px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.7;color:var(--term-text)}
+.out-scroll::-webkit-scrollbar{width:3px}
+.out-scroll::-webkit-scrollbar-thumb{background:var(--border)}
+.ol{margin-bottom:1px;color:var(--term-text)}
+.oc{color:var(--term-green)}.os{color:var(--term-green)}.oi{color:var(--term-blue)}.ow{color:var(--term-orange)}.oe{color:var(--term-red)}.od{color:var(--term-dim)}
+
+/* STATUS BAR */
+.status-bar{padding:3px 13px;background:var(--bg);border-top:1px solid var(--border);display:flex;align-items:center;gap:12px;font-size:10px;color:var(--text-muted);font-family:'JetBrains Mono',monospace;flex-shrink:0}
+.si{display:flex;align-items:center;gap:3px}
+
+/* EMPTY */
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px 20px;text-align:center;gap:9px}
+.empty-ico{font-size:42px}.empty-ttl{font-size:16px;font-weight:600;color:var(--text-dim)}.empty-txt{font-size:12px;color:var(--text-muted);line-height:1.6;max-width:260px}
+
+/* GUIDE */
+.g-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:1000;display:flex;align-items:flex-start;justify-content:center;padding:28px 20px;overflow-y:auto}
+.g-modal{background:var(--panel);border:1px solid var(--border);border-radius:10px;width:100%;max-width:680px;overflow:hidden}
+@keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.g-modal{animation:slideUp .25s ease}
+.g-hdr{background:var(--header);padding:14px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+.g-hdr-title{font-size:16px;font-weight:700}
+.g-close{background:transparent;border:1px solid var(--border);color:var(--text-dim);width:28px;height:28px;border-radius:5px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s}
+.g-close:hover{border-color:var(--red);color:var(--red)}
+.g-nav{display:flex;gap:4px;padding:9px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap}
+.g-nav-btn{background:transparent;border:1px solid var(--border);color:var(--text-dim);padding:4px 10px;border-radius:18px;cursor:pointer;font-size:11px;font-family:'Inter',sans-serif;transition:all .15s}
+.g-nav-btn:hover{border-color:var(--blue);color:var(--blue)}
+.g-nav-btn.active{background:var(--blue-dim);border-color:var(--blue);color:#fff}
+.g-body{padding:20px;max-height:60vh;overflow-y:auto}
+.g-body::-webkit-scrollbar{width:5px}
+.g-body::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.g-h{font-size:14px;font-weight:700;color:var(--text);margin-bottom:6px;margin-top:16px;display:flex;align-items:center;gap:6px}
+.g-h:first-child{margin-top:0}
+.g-h span{color:var(--green)}
+.g-p{font-size:12px;color:var(--text-dim);line-height:1.7;margin-bottom:8px}
+.g-code{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:8px 12px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--green);margin:6px 0;line-height:1.7;white-space:pre;overflow-x:auto}
+.g-table{width:100%;border-collapse:collapse;font-size:11px;margin:8px 0}
+.g-table th{background:var(--header);padding:6px 10px;text-align:left;border:1px solid var(--border);font-weight:600}
+.g-table td{padding:6px 10px;border:1px solid var(--border);color:var(--text-dim);vertical-align:top}
+.g-table td:first-child{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--green)}
+.g-tip{background:#d4f4dd;border:1px solid #9ae6b4;border-radius:5px;padding:8px 12px;font-size:11px;color:#166f30;margin:7px 0;display:flex;gap:6px}
+.g-warn{background:#fff3d6;border:1px solid #ffd980;border-radius:5px;padding:8px 12px;font-size:11px;color:var(--orange);margin:7px 0;display:flex;gap:6px}
+.hidden{display:none!important}
+
+/* ── CHALLENGE BANNER ── */
+.challenge-banner{display:flex;align-items:center;gap:10px;background:linear-gradient(90deg,#e8f0ff,#f3e8ff);border-bottom:1px solid var(--border);padding:8px 18px;font-size:12px}
+.challenge-icon{font-size:16px;flex-shrink:0}
+.challenge-text{display:flex;flex-direction:column;gap:1px;flex:1;min-width:0}
+.challenge-text strong{color:var(--text);font-size:12px}
+.challenge-text span{color:var(--text-dim);font-size:11px}
+.challenge-status{font-size:11px;font-weight:700;color:var(--orange);background:#fff3d6;padding:3px 10px;border-radius:12px;flex-shrink:0;white-space:nowrap}
+.challenge-status.done{color:#166f30;background:#d4f4dd}
+.challenge-close{background:transparent;border:1px solid var(--border);color:var(--text-dim);width:24px;height:24px;border-radius:5px;cursor:pointer;font-size:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
+.challenge-close:hover{border-color:var(--red);color:var(--red)}
+.challenge-action{background:transparent;border:1px solid var(--border);color:var(--text-dim);padding:4px 10px;border-radius:14px;cursor:pointer;font-size:11px;font-family:'Inter',sans-serif;flex-shrink:0;white-space:nowrap;transition:all .15s}
+.challenge-action:hover{border-color:var(--blue);color:var(--blue)}
+.challenge-action.active-hint{border-color:var(--yellow);color:var(--yellow);background:#fff8e1}
+.challenge-hint{display:block;font-size:11px;color:var(--yellow);margin-top:3px;font-style:italic}
+
+/* ── CHALLENGE LIST ── */
+.chal-card{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:10px;cursor:pointer;transition:border-color .15s}
+.chal-card:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.chal-card:hover{border-color:var(--blue)}
+.chal-card.solved{border-color:var(--green);background:#d4f4dd}
+.chal-head{display:flex;align-items:center;gap:8px;margin-bottom:5px}
+.chal-num{background:var(--blue-dim);color:#fff;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.chal-card.solved .chal-num{background:var(--green)}
+.chal-title{font-size:13px;font-weight:700;color:var(--text)}
+.chal-badge{margin-left:auto;font-size:9px;font-weight:700;padding:2px 8px;border-radius:10px;text-transform:uppercase}
+.chal-badge.todo{background:#fff8e1;color:var(--yellow)}
+.chal-badge.done{background:#d4f4dd;color:#166f30}
+.chal-desc{font-size:12px;color:var(--text-dim);line-height:1.6;margin-left:30px}
+.chal-hint{font-size:11px;color:var(--text-muted);margin-left:30px;margin-top:4px;font-style:italic}
+.chal-section-lbl{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);padding:14px 2px 8px;border-top:1px solid var(--border);margin-top:6px}
+.chal-section-lbl:first-child{border-top:none;margin-top:0;padding-top:0}
+.chal-section-sub{font-size:11px;color:var(--text-dim);font-weight:400;text-transform:none;letter-spacing:normal;margin-left:6px}
+.chal-card.workflow{border-left:3px solid var(--purple)}
+.chal-card.workflow.solved{border-left-color:var(--green)}
+
+/* ── BRIEFING MODAL ── */
+.brief-num{display:inline-block;background:var(--blue-dim);color:#fff;font-size:11px;font-weight:700;padding:3px 11px;border-radius:14px;margin-bottom:10px}
+.brief-title{font-size:18px;font-weight:700;color:var(--text);margin-bottom:8px}
+
+/* ── MOBILE SWITCHER (hidden on desktop) ── */
+.mobile-switcher{display:none}
+.mob-tab{flex:1;background:var(--panel);border:none;border-bottom:2px solid transparent;color:var(--text-dim);padding:10px 0;font-size:13px;font-weight:600;cursor:pointer;font-family:'Inter',sans-serif;transition:all .15s}
+.mob-tab.active{color:var(--text);border-bottom-color:var(--blue);background:var(--header)}
+
+/* ── RESPONSIVE BREAKPOINTS ── */
+@media (max-width:900px){
+  .topbar{flex-wrap:wrap;height:auto;padding:8px 12px;gap:8px}
+  .step-label{max-width:none;flex-basis:100%;order:3;font-size:11px}
+  .topbar-logo{font-size:14px}
+  .btn-guide{font-size:11px;padding:5px 9px}
+
+  .challenge-banner{flex-wrap:wrap;padding:6px 12px;gap:6px}
+  .challenge-text{flex-basis:100%;order:1}
+  .challenge-status{order:2}
+  .challenge-action{order:3;font-size:10px;padding:3px 8px}
+  .challenge-close{order:4}
+
+  .mobile-switcher{display:flex}
+
+  .main{flex-direction:column;position:relative;overflow:hidden}
+  .left-panel,.right-panel{
+    width:100%!important;flex-shrink:0;
+    position:absolute;top:0;left:0;height:100%;
+    transition:transform .25s ease;
+  }
+  .left-panel{border-right:none;border-bottom:1px solid var(--border);transform:translateX(0)}
+  .right-panel{transform:translateX(100%)}
+  .main.show-left .left-panel{transform:translateX(0)}
+  .main.show-left .right-panel{transform:translateX(100%)}
+  .main.show-right .left-panel{transform:translateX(-100%)}
+  .main.show-right .right-panel{transform:translateX(0)}
+
+  .cmd-list{max-height:none}
+  .out-panel{height:105px}
+  .ft-head,.ft-row{grid-template-columns:1fr 80px 0;font-size:11px}
+  .ft-time{display:none}
+  .zones-grid{grid-template-columns:1fr;gap:10px}
+  .zone-arrow{transform:rotate(90deg);padding:2px 0}
+  .zone-cell{min-height:auto}
+  .g-modal{max-width:96vw;margin:0 8px}
+  .g-body{max-height:70vh}
+}
+
+@media (max-width:480px){
+  .topbar-logo svg{width:20px;height:20px}
+  .topbar-logo{font-size:13px;gap:5px}
+  .step-badge{font-size:9px;padding:2px 7px}
+  .btn-guide{font-size:10px;padding:4px 7px}
+  .repo-tabs{padding:0 10px}
+  .rtab{padding:8px 10px;font-size:11px}
+  .repo-body{padding:12px 10px}
+  .cmd-list{padding:6px 8px}
+  .cmd-card{padding:8px 9px}
+  .card-name{font-size:10px}
+  .card-desc{font-size:9px}
+  .btn-row{flex-wrap:nowrap}
+  .btn-prev{padding:8px 10px;font-size:11px}
+  .repo-topbar{padding:8px 12px;flex-wrap:wrap}
+  .repo-name,.repo-owner{font-size:12px}
+  .remote-ind{font-size:10px;flex-basis:100%;margin-left:0;margin-top:3px}
+}
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<header class="topbar">
+  <div class="topbar-logo">
+    <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+    Git Visualizer
+  </div>
+  <div class="step-label" id="stepLabel">Click ▶ Run or press Next → to begin</div>
+  <span class="step-badge" id="stepBadge">BEGINNER</span>
+  <button class="btn-guide" onclick="openChallenges()" title="Test your skills with hands-on goals">🎯 Challenges</button>
+  <button class="btn-guide" onclick="resetVisualizer()" title="Clear everything and start over">🔄 Reset</button>
+  <button class="btn-guide" onclick="openHowTo()">❓ How to Use</button>
+  <button class="btn-guide" onclick="openGuide()">📖 Git Guide</button>
+</header>
+
+<!-- ACTIVE CHALLENGE BANNER (shown when a challenge is active) -->
+<div class="challenge-banner hidden" id="challengeBanner">
+  <span class="challenge-icon">🎯</span>
+  <div class="challenge-text">
+    <strong id="challengeTitle"></strong>
+    <span id="challengeDesc"></span>
+    <span class="challenge-hint hidden" id="challengeHint"></span>
+  </div>
+  <span class="challenge-status" id="challengeStatus">In progress…</span>
+  <button class="challenge-action" onclick="toggleHint()" title="Show/hide hint" id="hintBtn">💡 Hint</button>
+  <button class="challenge-action" onclick="restartChallenge()" title="Reset repo and restart this challenge">🔄 Restart</button>
+  <button class="challenge-close" onclick="exitChallenge()" title="Exit challenge">✕</button>
+</div>
+
+<!-- MOBILE TAB SWITCHER (only visible on small screens) -->
+<div class="mobile-switcher">
+  <button class="mob-tab active" data-pane="left" onclick="setMobilePane('left')">⌨️ Commands</button>
+  <button class="mob-tab" data-pane="right" onclick="setMobilePane('right')">📁 Repository</button>
+</div>
+
+<!-- MAIN -->
+<main class="main show-left">
+
+  <!-- LEFT PANEL -->
+  <div class="left-panel">
+    <div class="lp-header">
+      <span class="mac-dot" style="background:#ff5f57"></span>
+      <span class="mac-dot" style="background:#febc2e"></span>
+      <span class="mac-dot" style="background:#28c840"></span>
+      <span style="margin-left:6px">git commands</span>
+    </div>
+
+    <div class="cmd-list" id="cmdList"></div>
+
+    <div class="action-area">
+      <!-- Info card -->
+      <div class="info-card" id="infoCard">
+        <div class="info-syntax" id="infoSyntax"></div>
+        <div class="info-desc" id="infoDesc"></div>
+        <div class="info-tags" id="infoTags"></div>
+      </div>
+      <!-- Next step chips -->
+      <div class="next-panel" id="nextPanel">
+        <div class="next-title">👉 Recommended next commands</div>
+        <div class="next-chips" id="nextChips"></div>
+      </div>
+      <!-- Terminal display (read-only, shows selected command) -->
+      <div class="terminal-row">
+        <span class="term-prompt">~/my-project $</span>
+        <span class="term-display" id="termDisplay">select a command or click Next →</span>
+      </div>
+      <!-- Optional CLI input (for advanced users) -->
+      <div class="cli-row">
+        <span class="cli-prompt">type:</span>
+        <input class="cli-input" id="cliInput" placeholder="optional: type a git command and press Enter" aria-label="Type a git command" autocomplete="off" spellcheck="false"/>
+      </div>
+      <!-- Buttons -->
+      <div class="btn-row">
+        <button class="btn-prev" id="btnPrev" disabled onclick="navigate(-1)">← Prev</button>
+        <button class="btn-run" id="btnRun" disabled onclick="runCurrent()">▶ Run Command</button>
+      </div>
+      <!-- Progress dots -->
+      <div class="progress-row" id="progressRow"></div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="right-panel">
+    <div class="repo-topbar">
+      <span class="repo-owner">you</span>
+      <span class="repo-slash">/</span>
+      <span class="repo-name">my-project</span>
+      <span class="repo-vis">Public</span>
+      <span class="remote-ind" id="remoteInd">local only</span>
+    </div>
+    <div class="repo-tabs">
+      <button class="rtab active" onclick="setTab('code')">📁 Code</button>
+      <button class="rtab" onclick="setTab('commits')">🕐 Commits</button>
+      <button class="rtab" onclick="setTab('branches')">🌿 Branches</button>
+      <button class="rtab" onclick="setTab('diff')">🔍 Diff</button>
+      <button class="rtab" onclick="setTab('zones')">🔄 Zones</button>
+    </div>
+    <div class="repo-body" id="repoBody">
+      <div class="empty">
+        <div class="empty-ico">📂</div>
+        <div class="empty-ttl">No repository yet</div>
+        <div class="empty-txt">Click <strong>Next →</strong> to walk through every Git command step by step, or click any command on the left.</div>
+      </div>
+    </div>
+    <div class="out-panel">
+      <div class="out-header">💻 Terminal Output <span style="margin-left:auto;cursor:pointer;font-size:9px" onclick="clearOut()">Clear</span></div>
+      <div class="out-scroll" id="outScroll"><div class="ol od">Git Visualizer ready — click Next → to start the guided tour, or pick any command on the left.</div></div>
+    </div>
+    <div class="status-bar">
+      <div class="si">📌 <span id="sBranch" style="color:var(--purple)">not initialized</span></div>
+      <div class="si">✅ <span id="sStaged" style="color:var(--green)">0 staged</span></div>
+      <div class="si">📝 <span id="sModified" style="color:var(--orange)">0 modified</span></div>
+      <div class="si">📦 <span id="sStash" style="color:var(--purple)">stash: 0</span></div>
+      <div class="si" style="margin-left:auto"><span id="sRemote">no remote</span></div>
+    </div>
+  </div>
+</main>
+
+<!-- HOW TO USE MODAL -->
+<div class="g-overlay hidden" id="howtoOverlay" onclick="closeHowToOuter(event)">
+  <div class="g-modal" style="max-width:580px">
+    <div class="g-hdr">
+      <div class="g-hdr-title">👋 Welcome to Git Visualizer</div>
+      <button class="g-close" onclick="closeHowTo()">✕</button>
+    </div>
+    <div class="g-body">
+      <div class="g-p" style="font-size:13px">This tool teaches Git by letting you click through every command and watch a <strong>live simulated GitHub repository</strong> react in real time. Here's how to use it:</div>
+
+      <div class="g-h"><span>1</span> Click "Next →" to start the guided tour</div>
+      <div class="g-p">The bottom-right <strong>Next →</strong> button selects the next command AND runs it automatically — like a slideshow. <strong>Prev ←</strong> goes back. This is the easiest way to learn — just keep clicking Next.</div>
+
+      <div class="g-h"><span>2</span> Or click any command directly</div>
+      <div class="g-p">Browse the left panel (organized Beginner → Expert). Click any command to select it, read the info card showing syntax + description + safety tag, then click <strong>▶ Run Command</strong>.</div>
+
+      <div class="g-h"><span>3</span> Watch the right side update like real GitHub</div>
+      <div class="g-p">Every command changes the simulated repo. Switch between tabs to see different views:</div>
+      <table class="g-table">
+        <tr><th>Tab</th><th>What it shows</th></tr>
+        <tr><td>📁 Code</td><td>File tree — untracked (orange), staged (green), modified, committed</td></tr>
+        <tr><td>🕐 Commits</td><td>Visual branch graph with commit history</td></tr>
+        <tr><td>🌿 Branches</td><td>All branches, current branch (HEAD), and tags</td></tr>
+        <tr><td>🔍 Diff</td><td>Line-by-line changes before staging</td></tr>
+        <tr><td>🔄 Zones</td><td>The 4 Git zones — see files move between them live</td></tr>
+      </table>
+
+      <div class="g-h"><span>4</span> Yellow "Try Next" suggestions</div>
+      <div class="g-p">After running a command, recommended next commands get highlighted with a <strong>👉 Try Next</strong> badge — so you always know what to do next instead of guessing.</div>
+
+      <div class="g-h"><span>5</span> Terminal output + Git Guide</div>
+      <div class="g-p">The bottom-right panel shows real Git terminal output for every command, including real error messages if something's wrong. Click <strong>📖 Git Guide</strong> anytime for deeper explanations, tables, and best practices.</div>
+
+      <div class="g-tip">💡 Tip: Start from the top of the left panel (git init) and just keep pressing Next → — by the end you'll understand the entire Git + GitHub workflow.</div>
+
+      <button class="btn-run" style="margin-top:8px" onclick="closeHowTo()">Got it — Start Learning →</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHALLENGES MODAL -->
+<div class="g-overlay hidden" id="challengeOverlay" onclick="closeChallengeOuter(event)">
+  <div class="g-modal" style="max-width:620px">
+    <div class="g-hdr">
+      <div class="g-hdr-title">🎯 Challenges</div>
+      <button class="g-close" onclick="closeChallenges()">✕</button>
+    </div>
+    <div class="g-body">
+      <div class="g-p">Pick a goal. Use any commands (click cards, Next/Prev, or type in the terminal) to reach that state. The visualizer detects when you've completed it.</div>
+      <div id="challengeList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CHALLENGE BRIEFING MODAL -->
+<div class="g-overlay hidden" id="briefOverlay" onclick="closeBriefOuter(event)">
+  <div class="g-modal" style="max-width:480px">
+    <div class="g-hdr">
+      <div class="g-hdr-title">🎯 Challenge Mode</div>
+      <button class="g-close" onclick="closeBrief()">✕</button>
+    </div>
+    <div class="g-body">
+      <div class="brief-num" id="briefNum"></div>
+      <div class="brief-title" id="briefTitle"></div>
+      <div class="g-p" id="briefDesc"></div>
+      <div class="g-warn">⚠️ Starting this challenge resets your simulated repo to a clean slate, so you can solve it from scratch.</div>
+      <div class="g-tip">💡 Stuck? A "Hint" button appears once the challenge starts.</div>
+      <div style="display:flex;gap:10px;margin-top:14px">
+        <button class="btn-prev" style="flex:1" onclick="closeBrief()">Cancel</button>
+        <button class="btn-run" style="flex:2" onclick="confirmStartChallenge()">🚀 Start Challenge</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GUIDE MODAL -->
+<div class="g-overlay hidden" id="gOverlay" onclick="closeGuideOuter(event)">
+  <div class="g-modal">
+    <div class="g-hdr">
+      <div class="g-hdr-title">📖 Complete Git Guide</div>
+      <button class="g-close" onclick="closeGuide()">✕</button>
+    </div>
+    <div class="g-nav" id="gNav"></div>
+    <div class="g-body" id="gBody"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════════════════════
+const S={
+  init:false, branch:'main', branches:['main'],
+  files:[], commits:[], stash:[], tags:[],
+  remote:null, remoteSynced:false, tab:'code',
+  selCmd:null, ranCmds:new Set(), lastRan:null,
+  stepIdx:0, configSet:false,
+};
+const BASE=[
+  {name:'README.md',  icon:'📄',committed:false,staged:false,modified:false},
+  {name:'index.html', icon:'🌐',committed:false,staged:false,modified:false},
+  {name:'style.css',  icon:'🎨',committed:false,staged:false,modified:false},
+];
+function rH(){return Math.random().toString(16).substr(2,7);}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function ago(){const a=['just now','1 min ago','2 min ago','5 min ago'];return a[Math.floor(Math.random()*a.length)];}
+
+// ═══════════════════════════════════════════════════════════
+// COMMAND DEFINITIONS
+// ═══════════════════════════════════════════════════════════
+const SECTIONS=[
+  {label:'⚙️ Setup & Config', badge:'setup', cmds:[
+    {id:'git_init',   name:'git init',                           icon:'🚀', desc:'Initialize a new Git repository in the current folder'},
+    {id:'git_config', name:'git config --global user.name "You"',icon:'👤', desc:'Set your name & email identity used in every commit'},
+  ]},
+  {label:'🌱 Basic Workflow', badge:'basic', cmds:[
+    {id:'git_status',         name:'git status',                       icon:'🔍', desc:'Check what is staged, modified, or untracked'},
+    {id:'git_diff',           name:'git diff',                         icon:'📊', desc:'Show exact line-by-line changes not yet staged'},
+    {id:'git_add_file',       name:'git add <file>',                   icon:'➕', desc:'Stage one specific file for the next commit'},
+    {id:'git_add_all',        name:'git add .',                        icon:'📋', desc:'Stage ALL changed files in current directory'},
+    {id:'git_restore_staged', name:'git restore --staged <file>',      icon:'↩️', desc:'Unstage a file — keeps your edits, just removes from staging'},
+    {id:'git_commit',         name:'git commit -m "message"',          icon:'💾', desc:'Save staged snapshot permanently with a message'},
+    {id:'git_commit_amend',   name:'git commit --amend -m "msg"',      icon:'✏️', desc:'Rewrite the last commit — fix a typo or add missed file', danger:'REWRITES HISTORY'},
+    {id:'git_log',            name:'git log --oneline',                icon:'📜', desc:'View compact one-line commit history'},
+    {id:'git_edit_file',      name:'✏️ Edit a tracked file',           icon:'📝', desc:'Simulate editing a file you already committed — triggers "modified" state'},
+  ]},
+  {label:'🌐 Remote — GitHub', badge:'remote', cmds:[
+    {id:'git_clone',      name:'git clone <URL>',                icon:'📥', desc:'Download a complete remote repo with all history'},
+    {id:'git_remote_add', name:'git remote add origin <URL>',    icon:'🔗', desc:'Link your local repo to a GitHub repository'},
+    {id:'git_fetch',      name:'git fetch origin',               icon:'🔄', desc:'Download remote changes without merging them yet'},
+    {id:'git_push',       name:'git push origin <branch>',       icon:'⬆️', desc:'Upload local commits to GitHub'},
+    {id:'git_pull',       name:'git pull origin <branch>',       icon:'⬇️', desc:'Download AND merge remote changes into your local branch'},
+    {id:'git_push_tags',  name:'git push --tags',                icon:'🏷️', desc:'Push all local tags to GitHub (shows as Releases)'},
+  ]},
+  {label:'🌿 Branching & Merging', badge:'branch', cmds:[
+    {id:'git_branch',     name:'git branch <name>',              icon:'🌱', desc:'Create a new branch (you stay on your current branch)'},
+    {id:'git_checkout',   name:'git checkout <branch>',          icon:'🔀', desc:'Switch to a different existing branch'},
+    {id:'git_checkout_b', name:'git checkout -b <name>',         icon:'✨', desc:'Create AND switch to a new branch in one command'},
+    {id:'git_merge',      name:'git merge <branch>',             icon:'🔀', desc:'Merge a named branch INTO your current branch'},
+    {id:'git_branch_d',   name:'git branch -d <branch>',         icon:'🗑️', desc:'Delete a branch — only works if already merged'},
+  ]},
+  {label:'↩️ Undoing Changes', badge:'undo', cmds:[
+    {id:'git_checkout_file',name:'git checkout -- <file>',       icon:'🔄', desc:'Discard unstaged changes in a file',              danger:'DISCARDS CHANGES'},
+    {id:'git_reset_soft',   name:'git reset --soft HEAD~1',      icon:'⏪', desc:'Undo last commit — keeps your changes staged',    danger:'REMOVES COMMIT'},
+    {id:'git_reset_hard',   name:'git reset --hard HEAD~1',      icon:'💥', desc:'Undo last commit AND discard all changes',        danger:'DESTRUCTIVE'},
+    {id:'git_revert',       name:'git revert <hash>',            icon:'🛡️', desc:'Safely undo a commit by creating a new reverting commit'},
+  ]},
+  {label:'⚡ Advanced Git', badge:'advanced', cmds:[
+    {id:'git_stash',       name:'git stash',                     icon:'📦', desc:'Temporarily save uncommitted changes aside'},
+    {id:'git_stash_pop',   name:'git stash pop',                 icon:'📤', desc:'Restore the most recently stashed changes'},
+    {id:'git_stash_list',  name:'git stash list',                icon:'📋', desc:'List all stash entries saved so far'},
+    {id:'git_rebase',      name:'git rebase main',               icon:'🔁', desc:'Replay your branch commits on top of main',       danger:'REWRITES HISTORY'},
+    {id:'git_cherry_pick', name:'git cherry-pick <hash>',        icon:'🍒', desc:'Apply one specific commit from any branch here'},
+    {id:'git_tag',         name:'git tag -a v1.0 -m "release"',  icon:'🏷️', desc:'Create an annotated tag to mark a version/release'},
+  ]},
+  {label:'🧹 Expert & Cleanup', badge:'expert', cmds:[
+    {id:'git_clean',            name:'git clean -fd',                   icon:'🧹', desc:'Delete ALL untracked files and directories',      danger:'DESTRUCTIVE'},
+    {id:'git_alias',            name:'git config --global alias.st status',icon:'⚡',desc:'Create a shortcut alias for long commands'},
+    {id:'git_submodule',        name:'git submodule add <url>',         icon:'📦', desc:'Embed an external repository inside yours'},
+    {id:'git_resolve_conflict', name:'Simulate & Resolve Conflict',     icon:'⚔️', desc:'See and fix a real merge conflict scenario'},
+    {id:'git_rebase_i',         name:'git rebase -i HEAD~3',            icon:'🎯', desc:'Interactive rebase: squash, reorder, edit commits',danger:'REWRITES HISTORY'},
+    {id:'git_bisect',           name:'git bisect start/bad/good',       icon:'🔬', desc:'Binary search through commits to find a bug-introducing commit'},
+  ]},
+];
+
+// Flat list (ordered) and map
+const ALL_CMDS=SECTIONS.flatMap(s=>s.cmds);
+const CMD_MAP={};ALL_CMDS.forEach(c=>CMD_MAP[c.id]=c);
+const SECTION_OF={};SECTIONS.forEach(s=>s.cmds.forEach(c=>SECTION_OF[c.id]=s));
+
+// Next step suggestions
+const NEXT={
+  git_init:          ['git_config','git_status','git_add_all'],
+  git_config:        ['git_status','git_add_all'],
+  git_status:        ['git_add_all','git_add_file','git_diff'],
+  git_add_file:      ['git_add_all','git_status','git_commit'],
+  git_add_all:       ['git_status','git_commit'],
+  git_commit:        ['git_log','git_status','git_push','git_branch'],
+  git_log:           ['git_edit_file','git_branch','git_push'],
+  git_edit_file:     ['git_status','git_diff'],
+  git_diff:          ['git_add_all','git_restore_staged'],
+  git_restore_staged:['git_add_all','git_status'],
+  git_clone:         ['git_status','git_log','git_branch'],
+  git_remote_add:    ['git_push'],
+  git_fetch:         ['git_merge','git_log'],
+  git_push:          ['git_pull','git_log','git_branch'],
+  git_pull:          ['git_log','git_status','git_merge'],
+  git_push_tags:     ['git_log'],
+  git_branch:        ['git_checkout','git_checkout_b'],
+  git_checkout:      ['git_status','git_add_all','git_merge'],
+  git_checkout_b:    ['git_commit','git_merge'],
+  git_merge:         ['git_log','git_push','git_branch_d'],
+  git_branch_d:      ['git_log','git_branch'],
+  git_checkout_file: ['git_status'],
+  git_reset_soft:    ['git_commit','git_status'],
+  git_reset_hard:    ['git_status','git_log'],
+  git_revert:        ['git_log','git_push'],
+  git_stash:         ['git_checkout','git_stash_pop','git_stash_list'],
+  git_stash_pop:     ['git_status','git_add_all'],
+  git_stash_list:    ['git_stash_pop'],
+  git_rebase:        ['git_log','git_push'],
+  git_cherry_pick:   ['git_log','git_status'],
+  git_tag:           ['git_push_tags','git_log'],
+  git_commit_amend:  ['git_log','git_push'],
+  git_clean:         ['git_status'],
+  git_alias:         ['git_status'],
+  git_submodule:     ['git_status'],
+  git_resolve_conflict:['git_log','git_push'],
+  git_rebase_i:      ['git_log','git_push'],
+  git_bisect:        ['git_log'],
+};
+
+// ═══════════════════════════════════════════════════════════
+// COMMAND RUNNERS
+// ═══════════════════════════════════════════════════════════
+function runCmd(id){
+  const R={
+    git_init(){
+      if(S.init)return{err:'Already initialized! Repository exists.'};
+      S.init=true;S.branch='main';S.branches=['main'];
+      S.files=BASE.map(f=>({...f}));S.commits=[];S.remote=null;S.remoteSynced=false;
+      return{out:[
+        {c:'oc',t:'$ git init'},
+        {c:'os',t:'Initialized empty Git repository in /my-project/.git/'},
+        {c:'od',t:'hint: Using "main" as the name for the initial branch.'},
+        {c:'',t:''},
+        {c:'ow',t:'3 files found on disk — not tracked yet.'},
+        {c:'ow',t:'Run:  git add .   →  git commit -m "first commit"'},
+      ],hi:'✅ .git folder created. Files exist on disk but Git is NOT tracking them yet.'};
+    },
+    git_config(){
+      if(!S.init)return{err:'fatal: not a git repository. Run git init first.'};
+      S.configSet=true;
+      return{out:[
+        {c:'oc',t:'$ git config --global user.name "You"'},
+        {c:'oc',t:'$ git config --global user.email "you@example.com"'},
+        {c:'os',t:'✓ Identity set globally.'},
+        {c:'od',t:'Stored in: ~/.gitconfig'},
+        {c:'od',t:'Every commit will carry: You <you@example.com>'},
+      ],hi:'👤 Git now knows who you are. Your name and email appear on every commit.'};
+    },
+    git_status(){
+      if(!S.init)return{err:'fatal: not a git repository. Run git init first.'};
+      const staged=S.files.filter(f=>f.staged&&!f.committed);
+      const mod=S.files.filter(f=>f.modified&&!f.staged);
+      const untracked=S.files.filter(f=>!f.committed&&!f.staged&&!f.modified);
+      const lines=[{c:'oc',t:'$ git status'},{c:'oi',t:`On branch ${S.branch}`}];
+      if(!staged.length&&!mod.length&&!untracked.length){lines.push({c:'os',t:'nothing to commit, working tree clean'});}
+      if(staged.length){lines.push({c:'os',t:'Changes to be committed:'});staged.forEach(f=>lines.push({c:'os',t:`  new file: ${f.name}`}));}
+      if(mod.length){lines.push({c:'ow',t:'Changes not staged for commit:'});mod.forEach(f=>lines.push({c:'ow',t:`  modified: ${f.name}`}));}
+      if(untracked.length){lines.push({c:'ow',t:'Untracked files (Git is ignoring these):'});untracked.forEach(f=>lines.push({c:'ow',t:`  ${f.name}`}));}
+      return{out:lines,hi:'🔍 Status = your Git dashboard. Green = staged ✓  Orange = changed/untracked ⚠'};
+    },
+    git_diff(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      const changed=S.files.filter(f=>!f.committed||f.modified);
+      if(!changed.length)return{out:[{c:'oc',t:'$ git diff'},{c:'od',t:'(no changes — working tree is clean)'}],hi:'No differences. All changes are committed.'};
+      const lines=[{c:'oc',t:'$ git diff'}];
+      changed.forEach(f=>{
+        lines.push({c:'oi',t:`diff --git a/${f.name} b/${f.name}`});
+        lines.push({c:'oe',t:`--- a/${f.name}`});
+        lines.push({c:'os',t:`+++ b/${f.name}`});
+        lines.push({c:'os',t:`+  (new content in ${f.name})`});
+      });
+      return{out:lines,hi:'📊 diff shows EXACTLY what changed — red lines = removed, green = added. Shown before staging.'};
+    },
+    git_add_file(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      const f=S.files.find(f=>!f.staged&&(!f.committed||f.modified));
+      if(!f)return{out:[{c:'ow',t:'Nothing left to stage. All files are staged or committed.'}]};
+      const wasModified=f.committed&&f.modified;
+      f.staged=true;
+      return{out:[{c:'oc',t:`$ git add ${f.name}`},{c:'os',t:`✓ ${f.name} added to staging area.`},{c:'od',t:'Run git status to confirm.'}],
+        hi: wasModified
+          ? `➕ ${f.name}'s changes are now staged — ready to be committed as an update.`
+          : `➕ ${f.name} is now staged — it will be included in your next git commit.`};
+    },
+    git_add_all(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      const toStage=S.files.filter(f=>!f.staged&&(!f.committed||f.modified));
+      if(!toStage.length)return{out:[{c:'ow',t:'Nothing new to stage. All files already staged or committed.'}]};
+      const hadModified=toStage.some(f=>f.committed&&f.modified);
+      toStage.forEach(f=>f.staged=true);
+      return{out:[{c:'oc',t:'$ git add .'},...toStage.map(f=>({c:'os',t:`✓ staged: ${f.name}`})),{c:'od',t:`${toStage.length} file(s) staged. Ready to commit.`}],
+        hi: hadModified
+          ? `📋 Staged ${toStage.length} change(s) — including edits to already-committed files. Now run git commit.`
+          : `📋 All ${toStage.length} files staged. The dot (.) means "everything here". Now run git commit.`};
+    },
+    git_restore_staged(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      const s=S.files.filter(f=>f.staged);
+      if(!s.length)return{out:[{c:'ow',t:'No staged files to unstage.'}]};
+      s[0].staged=false;
+      return{out:[{c:'oc',t:`$ git restore --staged ${s[0].name}`},{c:'os',t:`✓ ${s[0].name} removed from staging area.`},{c:'od',t:'Your edits are kept — file just not staged anymore.'}],
+        hi:`↩️ ${s[0].name} unstaged. Your changes are still in the file, just won't be in next commit.`};
+    },
+    git_commit(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      const staged=S.files.filter(f=>f.staged);
+      if(!staged.length)return{err:'nothing to commit. Stage files first with: git add .'};
+      const isUpdate=staged.some(f=>f.committed);
+      staged.forEach(f=>{f.committed=true;f.staged=false;f.modified=false;});
+      const msgs=['Initial commit','Add project files','Update styles','Fix layout','Add feature','Refactor code','Update README','Update index.html'];
+      const msg=isUpdate ? 'Update index.html' : msgs[S.commits.length%msgs.length];
+      const h=rH();
+      S.commits.unshift({hash:h,message:msg,author:'You',time:ago(),files:staged.map(f=>f.name),branch:S.branch});
+      return{out:[{c:'oc',t:`$ git commit -m "${msg}"`},{c:'os',t:`[${S.branch} ${h}] ${msg}`},{c:'od',t:` ${staged.length} file(s) changed, snapshot saved.`}],
+        hi:`💾 Commit ${h} saved! This is now a permanent snapshot. You can always return to this point.`};
+    },
+    git_commit_amend(){
+      if(!S.commits.length)return{err:'No commits to amend.'};
+      const last=S.commits[0];
+      last.message=last.message.replace(' [amended]','')+' [amended]';last.hash=rH();
+      return{out:[{c:'oc',t:`$ git commit --amend -m "${last.message}"`},{c:'os',t:`[${S.branch} ${last.hash}] ${last.message}`},{c:'ow',t:'⚠ Previous commit replaced — history rewritten.'}],
+        hi:'✏️ Last commit updated. ⚠️ Never amend commits already pushed — causes conflicts for teammates.'};
+    },
+    git_log(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      if(!S.commits.length)return{out:[{c:'oc',t:'$ git log --oneline'},{c:'ow',t:`fatal: your current branch '${S.branch}' does not have any commits yet`}]};
+      return{out:[{c:'oc',t:'$ git log --oneline'},...S.commits.slice(0,6).map(c=>({c:'oi',t:`${c.hash}  ${c.message}`}))],
+        hi:'📜 Each line = one snapshot. Most recent at top. The hash is the unique ID you use in other commands.'};
+    },
+    git_edit_file(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      const committed=S.files.filter(f=>f.committed&&!f.modified);
+      if(!committed.length)return{err:'Nothing to edit yet — commit at least one file first (git add . → git commit).'};
+      const target=committed.find(f=>f.name==='index.html')||committed[0];
+      target.modified=true;
+      return{out:[
+        {c:'od',t:`✏️  (simulating) You opened ${target.name} in your editor and changed a line...`},
+        {c:'od',t:`✏️  (simulating) Saved ${target.name}.`},
+        {c:'oi',t:`No git command run yet — this just changes your working directory.`},
+      ],hi:`📝 ${target.name} is now "modified" — it's committed AND changed. This is the #1 real-world loop: edit → git status → git diff → git add → git commit. Try git status next!`};
+    },
+    git_clone(){
+      if(S.init)return{out:[{c:'ow',t:'Already have a repo. Clone creates a fresh copy in a new folder.'}]};
+      S.init=true;S.remote='github.com/example/my-project';S.branch='main';S.branches=['main'];
+      S.files=BASE.map(f=>({...f,committed:true}));
+      S.commits=[
+        {hash:rH(),message:'Initial commit from remote',author:'Original Author',time:'2 days ago',files:['README.md','index.html'],branch:'main'},
+        {hash:rH(),message:'Add style.css',author:'Original Author',time:'1 day ago',files:['style.css'],branch:'main'},
+      ];
+      S.remoteSynced=true;
+      return{out:[{c:'oc',t:'$ git clone https://github.com/example/my-project.git'},{c:'os',t:'Cloning into "my-project"...'},{c:'od',t:'remote: Counting objects: 12, done.'},{c:'os',t:'✓ Repository cloned with full history.'}],
+        hi:'📥 Clone = full copy of the repo + all history. "origin" remote automatically configured.'};
+    },
+    git_remote_add(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      if(S.remote)return{out:[{c:'ow',t:`Remote already set: ${S.remote}`}]};
+      S.remote='github.com/you/my-project';
+      return{out:[{c:'oc',t:'$ git remote add origin https://github.com/you/my-project.git'},{c:'os',t:"✓ Remote 'origin' added."},{c:'od',t:'$ git remote -v'},{c:'od',t:'origin  https://github.com/you/my-project.git (fetch)'},{c:'od',t:'origin  https://github.com/you/my-project.git (push)'}],
+        hi:'🔗 Remote linked! "origin" is just a nickname for the GitHub URL. Now push/pull will work.'};
+    },
+    git_fetch(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      if(!S.remote)return{err:"fatal: 'origin' does not appear to be a git repository. Run git remote add first."};
+      return{out:[{c:'oc',t:'$ git fetch origin'},{c:'oi',t:'From '+S.remote},{c:'od',t:`  origin/${S.branch} -> FETCH_HEAD`},{c:'os',t:'✓ Remote info downloaded. Your local files unchanged.'}],
+        hi:'🔄 Fetch downloads WITHOUT merging. Your files are untouched. Use git merge or git pull to apply.'};
+    },
+    git_push(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      if(!S.commits.length)return{err:'fatal: no commits to push. Commit something first.'};
+      if(!S.remote)S.remote='github.com/you/my-project';
+      S.remoteSynced=true;
+      return{out:[{c:'oc',t:`$ git push origin ${S.branch}`},{c:'od',t:'Enumerating objects...'},{c:'od',t:'Writing objects: 100%...'},{c:'os',t:`✓ ${S.commits.length} commit(s) pushed to origin/${S.branch}`}],
+        hi:`⬆️ Your commits are now live on GitHub at ${S.remote}. Others can see and pull your work!`};
+    },
+    git_pull(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      const nc={hash:rH(),message:'Remote fix: update readme',author:'Teammate',time:ago(),files:['README.md'],branch:S.branch};
+      S.commits.unshift(nc);if(S.files[0])S.files[0].committed=true;
+      return{out:[{c:'oc',t:`$ git pull origin ${S.branch}`},{c:'od',t:'From '+(S.remote||'github.com')},{c:'oi',t:`  origin/${S.branch} -> FETCH_HEAD`},{c:'os',t:'✓ 1 new commit pulled and merged.'}],
+        hi:"⬇️ Teammate's commit merged into your branch. Rule: always pull before you start work each day!"};
+    },
+    git_push_tags(){
+      if(!S.tags.length)return{err:'No tags exist. Run git tag first.'};
+      return{out:[{c:'oc',t:'$ git push --tags'},{c:'os',t:`✓ Pushed ${S.tags.length} tag(s): ${S.tags.join(', ')}`},{c:'od',t:'Tags appear as Releases on GitHub.'}],
+        hi:'🏷️ Tags are now on GitHub. Visit the repo → Releases tab to see them.'};
+    },
+    git_branch(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      const pool=['feature/login','feature/navbar','feature/dark-mode','bugfix/header','develop'];
+      const name=pool.find(n=>!S.branches.includes(n))||`feature/b${S.branches.length}`;
+      S.branches.push(name);
+      return{out:[{c:'oc',t:`$ git branch ${name}`},{c:'os',t:`✓ Branch "${name}" created at current commit.`},{c:'od',t:`Still on: ${S.branch} — use git checkout to switch.`}],
+        hi:`🌱 Branch "${name}" is a copy of ${S.branch} at this exact point. Nothing on main changes until you merge.`};
+    },
+    git_checkout(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      if(S.branches.length<2)return{err:'Only one branch exists. Create another with: git branch <name>'};
+      const other=S.branches.find(b=>b!==S.branch);const prev=S.branch;S.branch=other;
+      return{out:[{c:'oc',t:`$ git checkout ${other}`},{c:'os',t:`Switched to branch "${other}"`},{c:'od',t:`Previous branch: ${prev}`}],
+        hi:`🔀 Now on "${other}". Changes here are completely isolated from "${prev}" until you merge.`};
+    },
+    git_checkout_b(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      const pool=['hotfix/bug-42','feature/search','feature/api','refactor/cleanup'];
+      const name=pool.find(n=>!S.branches.includes(n))||`feature/new${S.branches.length}`;
+      S.branches.push(name);S.branch=name;
+      return{out:[{c:'oc',t:`$ git checkout -b ${name}`},{c:'os',t:`Switched to a new branch "${name}"`}],
+        hi:`✨ -b shortcut: creates the branch AND switches to it. You are now on "${name}".`};
+    },
+    git_merge(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      if(S.branches.length<2)return{err:'Need another branch. Use git branch or git checkout -b first.'};
+      const other=S.branches.find(b=>b!==S.branch);
+      const h=rH();
+      S.commits.unshift({hash:h,message:`Merge branch '${other}' into ${S.branch}`,author:'You',time:ago(),files:[],branch:S.branch,merge:true,mergeFrom:other});
+      return{out:[{c:'oc',t:`$ git merge ${other}`},{c:'os',t:"Merge made by the 'ort' strategy."},{c:'os',t:`[${S.branch} ${h}] Merge branch '${other}'`}],
+        hi:`🔀 "${other}" merged into "${S.branch}". All commits from that branch are now here.`};
+    },
+    git_branch_d(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      if(S.branches.length<2)return{err:"Cannot delete — only one branch remains."};
+      const del=S.branches.find(b=>b!==S.branch);S.branches=S.branches.filter(b=>b!==del);
+      return{out:[{c:'oc',t:`$ git branch -d ${del}`},{c:'os',t:`Deleted branch ${del}.`},{c:'od',t:'Commits still exist in history — only the branch label is gone.'}],
+        hi:`🗑️ Branch label "${del}" deleted. Its history is still in git log. You can't lose commits this way.`};
+    },
+    git_checkout_file(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      // Pick a committed file to simulate an edit, or use any tracked file
+      let target=S.files.find(f=>f.modified);
+      let simulated=false;
+      if(!target){
+        target=S.files.find(f=>f.committed)||S.files[0];
+        if(target){target.modified=true;simulated=true;}
+      }
+      if(!target)return{err:'No files exist yet. Run git init first.'};
+      target.modified=false;
+      const lines=[];
+      if(simulated) lines.push({c:'od',t:`(simulating: you had edited ${target.name} without committing)`});
+      lines.push({c:'oc',t:`$ git checkout -- ${target.name}`});
+      lines.push({c:'os',t:`✓ ${target.name} restored to last committed version.`});
+      lines.push({c:'ow',t:'Your local edits to this file are permanently gone.'});
+      return{out:lines,
+        hi:`🔄 ${target.name} reset to last commit. ⚠️ Cannot undo — use only when you truly want to throw away edits.`};
+    },
+    git_reset_soft(){
+      if(!S.commits.length)return{err:'fatal: no commits to undo.'};
+      const last=S.commits.shift();
+      last.files.forEach(n=>{const f=S.files.find(f=>f.name===n);if(f){f.staged=true;f.committed=false;}});
+      return{out:[{c:'oc',t:'$ git reset --soft HEAD~1'},{c:'ow',t:`Commit "${last.message}" undone.`},{c:'os',t:'Files kept in staging area. Ready to re-commit.'}],
+        hi:'⏪ Commit removed but files stay staged. Use to split a commit or fix a commit message.'};
+    },
+    git_reset_hard(){
+      if(!S.commits.length)return{err:'fatal: no commits to undo.'};
+      const last=S.commits.shift();
+      last.files.forEach(n=>{const f=S.files.find(f=>f.name===n);if(f){f.staged=false;f.committed=false;f.modified=false;}});
+      return{out:[{c:'oc',t:'$ git reset --hard HEAD~1'},{c:'oe',t:`⚠ DANGER: "${last.message}" and ALL changes permanently deleted.`},{c:'ow',t:'HEAD: '+(S.commits[0]?.hash||'no commits')}],
+        hi:'💥 DANGER: Commit AND all file changes deleted permanently. No recovery. Use git revert for safety.'};
+    },
+    git_revert(){
+      if(!S.commits.length)return{err:'fatal: no commits to revert.'};
+      const t=S.commits[S.commits.length-1];const h=rH();
+      S.commits.unshift({hash:h,message:`Revert "${t.message}"`,author:'You',time:ago(),files:[],branch:S.branch});
+      return{out:[{c:'oc',t:`$ git revert ${t.hash}`},{c:'os',t:`[${S.branch} ${h}] Revert "${t.message}"`},{c:'od',t:'New commit created that undoes target. History preserved.'}],
+        hi:'🛡️ Safe undo! Creates a NEW commit that cancels the old one. History stays intact. Safe for shared branches.'};
+    },
+    git_stash(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      // Find or simulate a modified file
+      let target=S.files.find(f=>f.modified);
+      let simulated=false;
+      if(!target){
+        target=S.files.find(f=>f.committed)||S.files[0];
+        if(target){target.modified=true;simulated=true;}
+      }
+      if(!target)return{err:'No files to stash. Working directory is empty.'};
+      const entry=[target.name];S.stash.push(entry);
+      target.modified=false;target.staged=false;
+      const lines=[];
+      if(simulated) lines.push({c:'od',t:`(simulating: you had edited ${target.name} without committing)`});
+      lines.push({c:'oc',t:'$ git stash'});
+      lines.push({c:'os',t:`Saved working directory state WIP on ${S.branch}: ${rH()}`});
+      lines.push({c:'od',t:'Stashed: '+entry.join(', ')});
+      return{out:lines,
+        hi:'📦 Changes saved to stash. Working directory is now clean. Switch branches freely, then git stash pop.'};
+    },
+    git_stash_pop(){
+      if(!S.stash.length)return{err:'No stash entries. Run git stash first.'};
+      const last=S.stash.pop();last.forEach(n=>{const f=S.files.find(f=>f.name===n);if(f)f.modified=true;});
+      return{out:[{c:'oc',t:'$ git stash pop'},{c:'os',t:'Restored: '+last.join(', ')},{c:'od',t:'Dropped refs/stash@{0}'}],
+        hi:'📤 Stashed changes restored to working directory. Now stage and commit when ready.'};
+    },
+    git_stash_list(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      return{out:[{c:'oc',t:'$ git stash list'},...(S.stash.length?S.stash.map((e,i)=>({c:'oi',t:`stash@{${i}}: WIP on ${S.branch}: ${e.join(',')}`})):[{c:'od',t:'No stash entries.'}])],
+        hi:`📋 ${S.stash.length} stash entry/entries. Use git stash pop (most recent) or git stash apply 0 (specific).`};
+    },
+    git_rebase(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      return{out:[{c:'oc',t:'$ git checkout feature/login'},{c:'oc',t:'$ git rebase main'},{c:'os',t:'Successfully rebased and updated refs/heads/feature/login'},{c:'od',t:'Commits replayed on top of main.'}],
+        hi:'🔁 Rebase = moves your commits to sit on top of the latest main. Creates clean linear history (no merge commits).'};
+    },
+    git_cherry_pick(){
+      if(!S.commits.length)return{err:'No commits to pick. Make some commits first.'};
+      const pick=S.commits[S.commits.length-1];const h=rH();
+      S.commits.unshift({hash:h,message:`(cherry-pick) ${pick.message}`,author:'You',time:ago(),files:pick.files,branch:S.branch});
+      return{out:[{c:'oc',t:`$ git cherry-pick ${pick.hash}`},{c:'os',t:`[${S.branch} ${h}] (cherry-pick) ${pick.message}`}],
+        hi:`🍒 Commit ${pick.hash} applied here without merging the whole branch!`};
+    },
+    git_tag(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      if(!S.commits.length)return{err:'fatal: no commits exist yet. Make a commit first, then tag it.'};
+      const pool=['v1.0','v1.1','v2.0','v2.1-beta','v2.2','v3.0'];
+      const tag=pool[S.tags.length]||`v${S.tags.length+1}.0`;
+      if(S.tags.includes(tag))return{out:[{c:'ow',t:`Tag "${tag}" already exists.`}]};
+      S.tags.push(tag);
+      return{out:[{c:'oc',t:`$ git tag -a ${tag} -m "Version ${tag} release"`},{c:'os',t:`✓ Tag "${tag}" created on commit ${S.commits[0].hash}.`},{c:'od',t:'Run git push --tags to push to GitHub.'}],
+        hi:`🏷️ Tag ${tag} marks commit ${S.commits[0].hash} as a release. Like a permanent bookmark in history.`};
+    },
+    git_clean(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      const untracked=S.files.filter(f=>!f.committed&&!f.staged);
+      const lines=[{c:'od',t:'Simulating: temp.log and build/ exist as untracked files...'},{c:'oc',t:'$ git clean -fd'}];
+      if(untracked.length){
+        untracked.forEach(f=>lines.push({c:'os',t:`Removing ${f.name}`}));
+        S.files=S.files.filter(f=>f.committed||f.staged);
+      }
+      lines.push({c:'os',t:'Removing temp.log'});
+      lines.push({c:'os',t:'Removing build/'});
+      lines.push({c:'os',t:'✓ Untracked files removed.'});
+      return{out:lines,
+        hi:'🧹 clean -fd removes untracked files AND directories. ⚠️ Permanent — no trash bin, no recovery!'};
+    },
+    git_alias(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      return{out:[{c:'oc',t:'$ git config --global alias.st status'},{c:'oc',t:'$ git config --global alias.co checkout'},{c:'oc',t:'$ git config --global alias.lg "log --oneline"'},{c:'os',t:'✓ Aliases set. Now type: git st  /  git co  /  git lg'}],
+        hi:'⚡ Aliases save time. Stored in ~/.gitconfig permanently. Type less, do more.'};
+    },
+    git_submodule(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      const sub={name:'libs/ui-kit',icon:'📦',committed:true,staged:false,modified:false};
+      if(!S.files.find(f=>f.name===sub.name))S.files.push(sub);
+      return{out:[{c:'oc',t:'$ git submodule add https://github.com/example/ui-kit.git libs/ui-kit'},{c:'os',t:"Cloning into 'libs/ui-kit'..."},{c:'os',t:'✓ Submodule added.'}],
+        hi:'📦 Submodule = another Git repo embedded inside yours. Tracked at a specific commit. Like a pinned dependency.'};
+    },
+    git_resolve_conflict(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      if(S.branches.length<2)S.branches.push('feature/conflict-demo');
+      const h=rH();
+      S.commits.unshift({hash:h,message:'Resolve conflict: keep both changes',author:'You',time:ago(),files:['index.html'],branch:S.branch});
+      return{out:[{c:'oc',t:'$ git merge feature/conflict-demo'},{c:'oe',t:'CONFLICT (content): Merge conflict in index.html'},{c:'oe',t:'Automatic merge failed; fix conflicts and then commit.'},{c:'od',t:'<<<<<<< HEAD'},{c:'od',t:'<h1>My Page</h1>'},{c:'od',t:'======='},{c:'od',t:'<h1>My Awesome Page</h1>'},{c:'od',t:'>>>>>>> feature/conflict-demo'},{c:'od',t:'--- You choose which version to keep, remove the markers ---'},{c:'oc',t:'$ git add index.html'},{c:'oc',t:'$ git commit -m "Resolve conflict"'},{c:'os',t:`[${S.branch} ${h}] Resolve conflict`}],
+        hi:'⚔️ Conflict = two branches edited the same line. Git shows both versions. You pick which to keep, then commit.'};
+    },
+    git_rebase_i(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      if(!S.commits.length)return{err:'Need commits. Make some first.'};
+      const n=Math.min(3,S.commits.length);const sq=S.commits.splice(0,n);const h=rH();
+      S.commits.unshift({hash:h,message:`Squashed: ${sq[0].message}`,author:'You',time:ago(),files:[],branch:S.branch});
+      return{out:[{c:'oc',t:'$ git rebase -i HEAD~3'},{c:'od',t:'  pick abc1234  Initial commit'},{c:'od',t:'  squash def456  Add files'},{c:'od',t:'  squash ghi789  Fix typo'},{c:'od',t:'(editor: changed second and third to "squash")'},{c:'os',t:`[${S.branch} ${h}] Squashed: ${sq[0].message}`}],
+        hi:'🎯 Interactive rebase: squash messy "fix typo" commits into one clean commit before merging. Professional!'};
+    },
+    git_bisect(){
+      if(!S.init)return{err:'fatal: not a git repository.'};
+      return{out:[{c:'oc',t:'$ git bisect start'},{c:'oc',t:'$ git bisect bad                  # current is broken'},{c:'oc',t:'$ git bisect good abc1234         # this one worked'},{c:'oi',t:'Bisecting: 3 revisions left to test...'},{c:'od',t:'Checking out def5678 — test it now'},{c:'os',t:'ghi9012 is the first bad commit!'}],
+        hi:'🔬 Bisect = binary search through commits. Cuts history in half each step. Finds bug-introducing commit in seconds.'};
+    },
+  };
+  const fn=R[id];if(!fn)return{err:'Command not found.'};
+  return fn();
+}
+
+// ═══════════════════════════════════════════════════════════
+// BUILD COMMAND LIST
+// ═══════════════════════════════════════════════════════════
+function buildCmdList(){
+  const list=document.getElementById('cmdList');list.innerHTML='';
+  SECTIONS.forEach(sec=>{
+    const lbl=document.createElement('div');lbl.className='section-lbl';lbl.textContent=sec.label;list.appendChild(lbl);
+    sec.cmds.forEach(cmd=>{
+      const card=document.createElement('div');
+      card.className='cmd-card'+(cmd.danger?' danger-card':'');
+      card.id='c_'+cmd.id;
+      card.innerHTML=`<div class="card-icon">${cmd.icon}</div>
+        <div class="card-body">
+          <div class="card-name">${esc(cmd.name)}</div>
+          <div class="card-desc">${esc(cmd.desc)}</div>
+        </div>
+        <span class="card-badge b-${sec.badge}">${sec.badge}</span>
+        ${cmd.danger?`<span class="danger-pill">⚠ ${cmd.danger}</span>`:''}`;
+      card.onclick=()=>selectCmd(cmd,false);
+      list.appendChild(card);
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+// SELECT + RUN LOGIC
+// ═══════════════════════════════════════════════════════════
+function selectCmd(cmd, autoRun){
+  S.selCmd=cmd;
+  S.stepIdx=ALL_CMDS.findIndex(c=>c.id===cmd.id);
+
+  // Card highlight
+  document.querySelectorAll('.cmd-card').forEach(c=>c.classList.remove('active','suggested'));
+  document.getElementById('c_'+cmd.id)?.classList.add('active');
+  document.getElementById('c_'+cmd.id)?.scrollIntoView({behavior:'smooth',block:'nearest'});
+
+  // Topbar label + badge
+  document.getElementById('stepLabel').textContent=cmd.desc;
+  const sec=SECTION_OF[cmd.id];
+  const badgeEl=document.getElementById('stepBadge');
+  badgeEl.textContent=(sec?.badge||'basic').toUpperCase();
+  const bc={setup:'#166f30',basic:'#166f30',remote:'#085fc4',branch:'#6f3dd1',undo:'#855a00',advanced:'#8f5500',expert:'#b91c28'};
+  badgeEl.style.background=bc[sec?.badge]||'#166f30';
+
+  // Terminal display
+  document.getElementById('termDisplay').textContent=cmd.name;
+
+  // CLI input sync
+  document.getElementById('cliInput').value=cmd.name.replace(/<[^>]+>/g,'<arg>');
+
+  // Info card
+  showInfoCard(cmd);
+
+  // Buttons
+  document.getElementById('btnRun').disabled=false;
+  document.getElementById('btnPrev').disabled=S.stepIdx<=0;
+
+  // Progress
+  renderProgress();
+
+  if(autoRun) runCurrent();
+}
+
+function showInfoCard(cmd){
+  document.getElementById('infoSyntax').textContent=cmd.name;
+  document.getElementById('infoDesc').textContent=cmd.desc;
+  const tags=document.getElementById('infoTags');
+  if(cmd.danger){
+    const cls=cmd.danger==='DESTRUCTIVE'?'itag-danger':'itag-warn';
+    tags.innerHTML=`<span class="itag ${cls}">⚠ ${cmd.danger}</span>`;
+  } else {
+    tags.innerHTML=`<span class="itag itag-safe">✓ Safe to run</span>`;
+  }
+  document.getElementById('infoCard').classList.add('visible');
+}
+
+function runCurrent(){
+  if(!S.selCmd) return;
+  const result=runCmd(S.selCmd.id)||{};
+  if(result.err){
+    addOut([{c:'oe',t:'✗ '+result.err}]);
+    return;
+  }
+  if(result.out) addOut(result.out);
+  if(result.hi) addOut([{c:'oi',t:'💡 '+result.hi}]);
+  S.ranCmds.add(S.selCmd.id);S.lastRan=S.selCmd.id;
+  renderRepo();renderStatus();renderProgress();renderNextPanel();
+  checkChallenge();
+  // On mobile, auto-show the repository pane so the user sees the result
+  if(window.innerWidth<=900) setMobilePane('right');
+}
+
+function navigate(dir){
+  const next=ALL_CMDS[S.stepIdx+dir];
+  if(!next)return;
+  // Navigate = select + auto-run (the learning flow)
+  selectCmd(next, true);
+}
+
+// ═══════════════════════════════════════════════════════════
+// NEXT STEP PANEL
+// ═══════════════════════════════════════════════════════════
+function renderNextPanel(){
+  const panel=document.getElementById('nextPanel');
+  const chips=document.getElementById('nextChips');
+  const suggestions=(NEXT[S.lastRan]||[]).filter(id=>CMD_MAP[id]);
+  if(!suggestions.length){panel.classList.remove('visible');return;}
+
+  // Highlight suggested cards
+  document.querySelectorAll('.cmd-card').forEach(c=>c.classList.remove('suggested'));
+  suggestions.forEach(id=>{
+    document.getElementById('c_'+id)?.classList.add('suggested');
+  });
+
+  chips.innerHTML=suggestions.map(id=>
+    `<span class="next-chip" onclick="selectCmd(CMD_MAP['${id}'],true)">${esc(CMD_MAP[id].name)}</span>`
+  ).join('');
+  panel.classList.add('visible');
+}
+
+// ═══════════════════════════════════════════════════════════
+// PROGRESS DOTS
+// ═══════════════════════════════════════════════════════════
+function renderProgress(){
+  const row=document.getElementById('progressRow');row.innerHTML='';
+  ALL_CMDS.forEach((cmd,i)=>{
+    const dot=document.createElement('div');
+    dot.className='p-dot'+(S.ranCmds.has(cmd.id)?' done':'')+(i===S.stepIdx?' cur':'');
+    dot.title=cmd.name;
+    dot.onclick=()=>selectCmd(cmd,false);
+    row.appendChild(dot);
+  });
+  document.getElementById('btnPrev').disabled=S.stepIdx<=0;
+  const nextBtn=document.getElementById('btnRun');
+  nextBtn.textContent=S.stepIdx>=ALL_CMDS.length-1?'▶ Run':'▶ Run Command';
+}
+
+// ═══════════════════════════════════════════════════════════
+// OUTPUT
+// ═══════════════════════════════════════════════════════════
+function addOut(lines){
+  const scroll=document.getElementById('outScroll');
+  lines.forEach(l=>{
+    const d=document.createElement('div');d.className='ol '+l.c;d.textContent=l.t;scroll.appendChild(d);
+  });
+  scroll.scrollTop=scroll.scrollHeight;
+}
+function clearOut(){document.getElementById('outScroll').innerHTML='<div class="ol od">Cleared.</div>';}
+
+// ═══════════════════════════════════════════════════════════
+// STATUS BAR
+// ═══════════════════════════════════════════════════════════
+function renderStatus(){
+  document.getElementById('sBranch').textContent=S.init?S.branch:'not initialized';
+  document.getElementById('sStaged').textContent=S.files.filter(f=>f.staged&&!f.committed).length+' staged';
+  document.getElementById('sModified').textContent=S.files.filter(f=>f.modified).length+' modified';
+  document.getElementById('sStash').textContent='stash: '+S.stash.length;
+  document.getElementById('sRemote').textContent=S.remote?('🌐 '+S.remote):'no remote';
+  document.getElementById('remoteInd').textContent=S.remote?(S.remoteSynced?'✓ synced with '+S.remote:'⬆ unpushed — '+S.remote):'local only';
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════
+function setTab(t){
+  S.tab=t;
+  document.querySelectorAll('.rtab').forEach((el,i)=>{
+    el.classList.toggle('active',['code','commits','branches','diff','zones'][i]===t);
+  });
+  renderRepo();
+}
+
+function renderRepo(){
+  if(S.tab==='code')renderCode();
+  else if(S.tab==='commits')renderCommits();
+  else if(S.tab==='branches')renderBranches();
+  else if(S.tab==='diff')renderDiff();
+  else renderZones();
+}
+
+// ═══════════════════════════════════════════════════════════
+// CODE TAB
+// ═══════════════════════════════════════════════════════════
+function renderCode(){
+  const body=document.getElementById('repoBody');
+  if(!S.init){
+    body.innerHTML=`<div class="empty"><div class="empty-ico">📂</div><div class="empty-ttl">No repository yet</div><div class="empty-txt">Click <strong>Next →</strong> to start, or click <strong>git init</strong> on the left.</div></div>`;
+    return;
+  }
+  const staged=S.files.filter(f=>f.staged);
+  const committed=S.files.filter(f=>f.committed&&!f.staged);
+  const untracked=S.files.filter(f=>!f.committed&&!f.staged);
+  const modified=S.files.filter(f=>f.modified&&!f.staged);
+  let h=`<div class="code-bar"><div class="branch-pill">⎇ ${S.branch}</div><span style="font-size:12px;color:var(--text-dim);margin-left:auto"><strong>${S.commits.length}</strong> commit${S.commits.length!==1?'s':''}</span></div>`;
+
+  if(modified.length) h+=`<div style="background:#fff3d6;border:1px solid #ffd980;border-radius:7px;padding:9px 13px;margin-bottom:11px;font-size:12px;color:var(--orange)">
+    ⚠️ <strong>${modified.length} file(s) modified</strong> (not staged): ${modified.map(f=>f.name).join(', ')}
+    <span style="float:right;font-size:10px">→ run git add . to stage</span></div>`;
+
+  if(staged.length) h+=`<div style="background:#d4f4dd;border:1px solid #9ae6b4;border-radius:7px;padding:9px 13px;margin-bottom:11px;font-size:12px;color:#166f30">
+    ✅ <strong>${staged.length} file(s) staged</strong> — ready to commit: ${staged.map(f=>f.name).join(', ')}
+    <span style="float:right;font-size:10px">→ run git commit -m "..."</span></div>`;
+
+  h+=`<div class="file-tree"><div class="ft-head"><div>Name</div><div>Last commit</div><div>Time</div></div>
+    <div class="ft-row"><div class="ft-name"><span>📁</span>.git</div><div class="ft-msg" style="color:var(--text-muted)">—</div><div class="ft-time">—</div></div>`;
+
+  committed.forEach(f=>{
+    const rc=S.commits.find(c=>c.files.includes(f.name));
+    if(f.modified){
+      h+=`<div class="ft-row" style="background:#fff3d6"><div class="ft-name" style="color:var(--orange)"><span>${f.icon}</span>${f.name}</div><div class="ft-msg" style="color:var(--orange)">⚠ modified — not staged</div><div class="ft-time" style="color:var(--orange)">now</div></div>`;
+    } else {
+      h+=`<div class="ft-row"><div class="ft-name"><span>${f.icon}</span>${f.name}</div><div class="ft-msg">${rc?rc.message.substring(0,35):'committed'}</div><div class="ft-time">${rc?rc.time:'now'}</div></div>`;
+    }
+  });
+  staged.forEach(f=>{
+    const label=f.committed ? 'staged update — ready to re-commit' : 'staged — awaiting commit';
+    h+=`<div class="ft-row" style="background:#d4f4dd"><div class="ft-name" style="color:#166f30"><span>${f.icon}</span>${f.name}</div><div class="ft-msg" style="color:#166f30">${label}</div><div class="ft-time" style="color:#166f30">now</div></div>`;
+  });
+  untracked.forEach(f=>{
+    h+=`<div class="ft-row" style="opacity:.55;border-left:3px solid var(--orange)"><div class="ft-name" style="color:var(--orange)"><span>${f.icon}</span>${f.name}</div><div class="ft-msg" style="color:var(--text-muted);font-style:italic">untracked — Git ignoring this</div><div class="ft-time">—</div></div>`;
+  });
+  h+=`</div>`;
+
+  if(committed.find(f=>f.name==='README.md')){
+    h+=`<div class="file-tree" style="margin-top:10px"><div class="ft-head" style="grid-template-columns:1fr">📄 README.md</div>
+      <div style="padding:13px;font-size:13px;color:var(--text-dim);line-height:1.8">
+        <strong style="color:var(--text);font-size:15px"># my-project</strong><br>
+        A project tracked with Git. Branch: <code style="color:var(--purple)">${S.branch}</code>
+        ${S.tags.length?` &nbsp;|&nbsp; Release: <code style="color:var(--green)">${S.tags[S.tags.length-1]}</code>`:''}
+        ${S.remote?`<br>Remote: <span style="color:var(--blue)">${S.remote}</span>`:''}
+      </div></div>`;
+  }
+
+  if(untracked.length){
+    h+=`<div style="background:#fff3d6;border:1px solid #ffd980;border-radius:7px;padding:12px 14px;margin-top:10px">
+      <div style="font-size:11px;font-weight:700;color:var(--orange);margin-bottom:7px">⚠️ Untracked — exist on disk, invisible to Git</div>
+      ${untracked.map(f=>`<div style="display:flex;align-items:center;gap:7px;padding:4px 0;font-family:JetBrains Mono,monospace;font-size:11px;color:var(--orange)">${f.icon} ${f.name}<span style="margin-left:auto;font-size:9px;color:var(--text-muted);background:#fff3d6;padding:1px 6px;border-radius:8px">untracked</span></div>`).join('')}
+      <div style="margin-top:7px;font-size:11px;color:var(--text-muted)">Run <code style="color:var(--green)">git add .</code> then <code style="color:var(--green)">git commit -m "..."</code></div>
+    </div>`;
+  }
+
+  if(S.remote){
+    h+=`<div style="background:var(--panel);border:1px solid var(--border);border-radius:7px;padding:9px 13px;margin-top:10px;display:flex;align-items:center;gap:9px;font-size:12px">
+      🌐 <span style="color:var(--text-dim)">GitHub:</span><span style="color:var(--blue)">${S.remote}</span>
+      <span style="margin-left:auto">${S.remoteSynced?`<span style="color:var(--green)">✓ Synced</span>`:`<span style="color:var(--orange)">⬆️ Unpushed commits</span>`}</span>
+    </div>`;
+  }
+  body.innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════
+// COMMITS TAB — SVG GRAPH
+// ═══════════════════════════════════════════════════════════
+function renderCommits(){
+  const body=document.getElementById('repoBody');
+  if(!S.commits.length){
+    body.innerHTML=`<div class="empty"><div class="empty-ico">🕐</div><div class="empty-ttl">No commits yet</div><div class="empty-txt">Stage files with git add, then run git commit.</div></div>`;
+    return;
+  }
+  let h=`<div style="font-size:12px;font-weight:600;color:var(--text-dim);margin-bottom:10px;display:flex;align-items:center;gap:8px">🕐 Commit Graph <span style="margin-left:auto;font-size:10px;color:var(--text-muted)">${S.commits.length} commit(s) · ${S.branches.length} branch(es)</span></div>`;
+  h+=buildSVG();
+  h+=`<div style="margin-top:12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);margin-bottom:7px">Commit Details</div>`;
+  S.commits.forEach((c,i)=>{
+    h+=`<div style="display:flex;gap:9px">
+      <div style="display:flex;flex-direction:column;align-items:center;width:16px;flex-shrink:0">
+        <div style="width:10px;height:10px;border-radius:50%;background:${i===0?'var(--green)':'var(--blue-dim)'};border:2px solid ${i===0?'var(--green)':'var(--blue)'};flex-shrink:0;margin-top:9px"></div>
+        ${i<S.commits.length-1?'<div style="width:2px;flex:1;background:var(--border);min-height:8px"></div>':''}
+      </div>
+      <div class="commit-item" style="flex:1">
+        <span class="c-hash">${c.hash}</span>
+        <div class="c-msg">${esc(c.message)}${c.files.length?`<div style="font-size:10px;color:var(--text-muted);margin-top:1px">📄 ${c.files.join(', ')}</div>`:''}</div>
+        <span class="c-author">${c.author}</span>
+        <span class="c-time">${c.time}</span>
+      </div>
+    </div>`;
+  });
+  if(S.tags.length) h+=`<div style="margin-top:9px;display:flex;flex-wrap:wrap;gap:5px">${S.tags.map(t=>`<span style="background:#d4f4dd;border:1px solid #9ae6b4;color:var(--green);padding:2px 8px;border-radius:18px;font-size:10px;font-family:JetBrains Mono,monospace">🏷️ ${t}</span>`).join('')}</div>`;
+  body.innerHTML=h;
+}
+
+function buildSVG(){
+  const C=S.commits.slice(0,12);
+  const B=S.branches;
+  const COLORS=['#166f30','#085fc4','#6f3dd1','#855a00','#8f5500','#b91c28'];
+  const R=8,RH=42,PAD=16,TOP=24;
+  const cols={};B.forEach((b,i)=>cols[b]=i);
+  function cx(c,i){
+    if(c.merge)return 0;
+    const bi=B.findIndex(b=>b===c.branch);
+    return bi>=0?bi:0;
+  }
+  const n=C.length;
+  const W=Math.max(300,PAD*2+Math.max(B.length,2)*30+190);
+  const H=TOP+n*RH+R;
+  let ln='',ci='',lb='';
+
+  // Branch lane guides
+  B.slice(0,5).forEach((b,i)=>{
+    const x=PAD+i*30+R;
+    ln+=`<line x1="${x}" y1="${TOP}" x2="${x}" y2="${TOP+(n-1)*RH}" stroke="${COLORS[i%COLORS.length]}" stroke-width="1.5" stroke-opacity=".15" stroke-dasharray="3,3"/>`;
+  });
+
+  C.forEach((c,i)=>{
+    const col=cx(c,i);
+    const x=PAD+col*30+R;
+    const y=TOP+i*RH;
+    const color=COLORS[col%COLORS.length];
+    const isHead=i===0;
+
+    // Line to next
+    if(i<n-1){
+      const nc2=cx(C[i+1],i+1);
+      const nx=PAD+nc2*30+R,ny=y+RH;
+      if(col===nc2){
+        ln+=`<line x1="${x}" y1="${y+R}" x2="${nx}" y2="${ny-R}" stroke="${color}" stroke-width="2" stroke-opacity=".7"/>`;
+      } else {
+        ln+=`<path d="M${x} ${y+R} C${x} ${y+RH*.6} ${nx} ${y+RH*.6} ${nx} ${ny-R}" fill="none" stroke="${color}" stroke-width="1.8" stroke-opacity=".6"/>`;
+      }
+    }
+
+    // Merge arc from branch 1
+    if(c.merge&&B.length>1){
+      const mx=PAD+1*30+R;
+      ln+=`<path d="M${mx} ${y-RH*.4} Q${mx} ${y} ${x} ${y}" fill="none" stroke="${COLORS[1%COLORS.length]}" stroke-width="1.5" stroke-opacity=".5" stroke-dasharray="4,2"/>`;
+    }
+
+    // Node circle
+    ci+=`<circle cx="${x}" cy="${y}" r="${isHead?R+1.5:R}" fill="${isHead?color:'#ffffff'}" stroke="${color}" stroke-width="${isHead?2.5:1.8}" opacity="${isHead?1:.85}"/>`;
+    if(isHead) ci+=`<circle cx="${x}" cy="${y}" r="${R-3}" fill="${color}" opacity=".55"/>`;
+
+    // HEAD pointer
+    if(isHead){
+      const hx=x+R+5;
+      lb+=`<rect x="${hx}" y="${y-8}" width="36" height="15" rx="3" fill="#ddeeff" stroke="#085fc4" stroke-width="1"/>
+        <text x="${hx+18}" y="${y+5}" text-anchor="middle" font-size="8" fill="#085fc4" font-family="monospace">HEAD</text>`;
+    }
+
+    // Tag
+    if(isHead&&S.tags.length){
+      const tx=x+R+(isHead?44:5);
+      lb+=`<rect x="${tx}" y="${y-8}" width="30" height="15" rx="3" fill="#d4f4dd" stroke="#166f30" stroke-width="1"/>
+        <text x="${tx+15}" y="${y+5}" text-anchor="middle" font-size="8" fill="#166f30" font-family="monospace">${S.tags[S.tags.length-1]}</text>`;
+    }
+
+    // Hash + message
+    const mx=PAD+Math.max(B.length,2)*30+18;
+    lb+=`<text x="${mx}" y="${y+4}" font-size="9.5" fill="#085fc4" font-family="monospace">${c.hash}</text>`;
+    const msg=c.message.length>30?c.message.substring(0,28)+'…':c.message;
+    lb+=`<text x="${mx+52}" y="${y+4}" font-size="9.5" fill="${isHead?'#1c2333':'#57606f'}" font-family="sans-serif">${esc(msg)}</text>`;
+  });
+
+  // Branch name boxes at top
+  B.slice(0,5).forEach((b,i)=>{
+    const x=PAD+i*30+R;const col=COLORS[i%COLORS.length];const cur=b===S.branch;
+    const short=b.replace('feature/','f/').replace('bugfix/','bf/').substring(0,7);
+    lb+=`<rect x="${x-20}" y="2" width="40" height="14" rx="3" fill="${cur?col+'33':'#ffffff'}" stroke="${cur?col:'#d7dceb'}" stroke-width="1"/>
+      <text x="${x}" y="12" text-anchor="middle" font-size="7.5" fill="${cur?col:'#57606f'}" font-family="monospace" font-weight="${cur?700:400}">${short}</text>`;
+  });
+
+  return `<div class="graph-wrap"><svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="display:block">${ln}${ci}${lb}</svg></div>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// BRANCHES TAB
+// ═══════════════════════════════════════════════════════════
+function renderBranches(){
+  const body=document.getElementById('repoBody');
+  const cols=['#166f30','#085fc4','#6f3dd1','#855a00','#8f5500','#b91c28'];
+  let h=`<div class="branch-box"><div class="branch-box-title">🌿 Branches (${S.branches.length})</div>`;
+  S.branches.forEach((b,i)=>{
+    const cur=b===S.branch;
+    h+=`<div class="branch-item ${cur?'':''}">
+      <div class="b-dot" style="background:${cols[i%cols.length]}"></div>
+      <span style="font-family:JetBrains Mono,monospace;font-size:12px;color:${cur?'var(--green)':'var(--blue)'};font-weight:${cur?700:400}">${b}</span>
+      ${cur?'<span style="margin-left:auto;font-size:10px;color:var(--green);font-weight:700">● HEAD</span>':''}
+    </div>`;
+  });
+  h+=`</div>`;
+  // Mini diagram
+  h+=`<div class="branch-box"><div class="branch-box-title">📊 Branch Diagram</div>
+    <div style="font-family:JetBrains Mono,monospace;font-size:11px;line-height:2;padding:4px 0">`;
+  S.commits.slice(0,6).forEach((c,i)=>{
+    h+=`<div style="display:flex;align-items:center;gap:8px">
+      <span style="color:${i===0?'var(--green)':'var(--blue-dim)'}">●</span>
+      <span style="color:var(--green)">${c.hash}</span>
+      <span style="color:var(--text-dim)">${esc(c.message.substring(0,36))}</span>
+      ${i===0?`<span style="color:var(--orange);font-size:10px;font-weight:700">(HEAD → ${S.branch})</span>`:''}
+    </div>`;
+  });
+  if(!S.commits.length)h+=`<div style="color:var(--text-muted)">No commits yet.</div>`;
+  h+=`</div></div>`;
+  if(S.tags.length){
+    h+=`<div class="branch-box"><div class="branch-box-title">🏷️ Tags</div><div style="display:flex;flex-wrap:wrap;gap:6px">`;
+    S.tags.forEach(t=>{h+=`<span style="background:#d4f4dd;border:1px solid #9ae6b4;color:var(--green);padding:3px 10px;border-radius:18px;font-size:11px;font-family:JetBrains Mono,monospace">${t}</span>`;});
+    h+=`</div></div>`;
+  }
+  body.innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════
+// DIFF TAB
+// ═══════════════════════════════════════════════════════════
+function renderDiff(){
+  const body=document.getElementById('repoBody');
+  const changed=S.files.filter(f=>!f.committed||f.modified||f.staged);
+  if(!changed.length){
+    body.innerHTML=`<div class="empty"><div class="empty-ico">🔍</div><div class="empty-ttl">No differences</div><div class="empty-txt">All files are committed and unchanged.</div></div>`;
+    return;
+  }
+  let h=`<div style="margin-bottom:11px;font-size:12px;font-weight:600;color:var(--text-dim)">🔍 Current Diff</div>`;
+  changed.forEach(f=>{
+    h+=`<div style="background:var(--panel);border:1px solid var(--border);border-radius:6px;margin-bottom:9px;overflow:hidden">
+      <div style="background:var(--header);padding:6px 12px;font-family:JetBrains Mono,monospace;font-size:11px;color:var(--text-dim)">diff --git a/${f.name} b/${f.name}</div>
+      <div style="padding:9px 12px;font-family:JetBrains Mono,monospace;font-size:11px;line-height:1.8">
+        <div style="color:var(--text-muted)">--- a/${f.name}</div>
+        <div style="color:var(--text-muted)">+++ b/${f.name}</div>
+        <div style="color:var(--red)">- (previous content)</div>
+        <div style="color:var(--green)">+ (new/modified content — status: ${f.committed?'modified':'new file'})</div>
+      </div>
+    </div>`;
+  });
+  body.innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════
+// ZONES TAB
+// ═══════════════════════════════════════════════════════════
+function renderZones(){
+  const body=document.getElementById('repoBody');
+  const modifiedNotStaged=S.files.filter(f=>f.modified&&!f.staged);
+  const untracked=S.files.filter(f=>!f.staged&&!f.committed&&!f.modified);
+  const workingDir=[...untracked,...modifiedNotStaged];
+  const staged=S.files.filter(f=>f.staged);
+  const committed=S.files.filter(f=>f.committed&&!f.staged);
+  const fn=(f,cls)=>`<span class="f-node ${cls}">${f.icon} ${f.name}</span>`;
+  const empty=msg=>`<span class="zone-empty">${msg}</span>`;
+  const lastCmd=S.lastRan?CMD_MAP[S.lastRan]?.name||'—':'none yet';
+
+  let h=`<div class="zone-page">
+  <div><div class="zone-header">🔄 Git's 4 Zones — Live View</div>
+  <div class="zone-sub">Last command: <code style="color:var(--green);font-family:JetBrains Mono,monospace">${esc(lastCmd)}</code></div></div>
+
+  <div class="zones-grid">
+    <div class="zone-cell" style="border-color:#ffd980">
+      <div class="zone-lbl" style="color:var(--orange)">📝 Working<br>Directory</div>
+      ${workingDir.length?workingDir.map(f=>fn(f,'f-untracked')).join('<br>'):empty('clean')}
+      <div class="zone-cmd">git add .</div>
+    </div>
+    <div class="zone-arrow">→</div>
+    <div class="zone-cell" style="border-color:#9ae6b4">
+      <div class="zone-lbl" style="color:#166f30">📋 Staging<br>Area</div>
+      ${staged.length?staged.map(f=>fn(f,'f-staged')).join('<br>'):empty('empty')}
+      <div class="zone-cmd">git commit</div>
+    </div>
+    <div class="zone-arrow">→</div>
+    <div class="zone-cell" style="border-color:#a8d4ff">
+      <div class="zone-lbl" style="color:var(--blue)">🗄️ Local<br>Repository</div>
+      ${committed.length?committed.slice(0,3).map(f=>fn(f,'f-committed')).join('<br>'):empty('no commits')}
+      ${committed.length>3?`<span style="font-size:9px;color:var(--text-muted)">+${committed.length-3} more</span>`:''}
+      <div class="zone-cmd">git push</div>
+    </div>
+    <div class="zone-arrow">→</div>
+    <div class="zone-cell" style="border-color:${S.remote?'#d9b8ff':'var(--border)'}">
+      <div class="zone-lbl" style="color:${S.remote?'var(--purple)':'var(--text-muted)'}">🌐 Remote<br>GitHub</div>
+      ${S.remoteSynced?`<span class="f-node f-remote">🌐 ${S.commits.length} synced</span>`:empty('not pushed')}
+      <div class="zone-cmd">git pull</div>
+    </div>
+  </div>
+
+  <div class="zone-flow-table">
+    ${[['git add .','Working Dir','Staging Area'],['git commit','Staging Area','Local Repo'],
+       ['git push','Local Repo','Remote/GitHub'],['git pull','Remote/GitHub','Working Dir'],
+       ['git stash','Working Dir','Stash (hidden)'],['git stash pop','Stash','Working Dir'],
+       ['git fetch','Remote','Local (no merge)']].map(([cmd,from,to])=>
+      `<div class="zft-row"><span class="zft-cmd">${cmd}</span><span class="zft-from">${from}</span><span class="zft-arr">→</span><span class="zft-to">${to}</span></div>`
+    ).join('')}
+  </div>
+
+  <div class="zone-summary">
+    <div class="zsitem"><div class="zsdot" style="background:var(--orange)"></div>${untracked.length} untracked</div>
+    <div class="zsitem"><div class="zsdot" style="background:var(--orange)"></div>${modifiedNotStaged.length} modified</div>
+    <div class="zsitem"><div class="zsdot" style="background:#166f30"></div>${staged.length} staged</div>
+    <div class="zsitem"><div class="zsdot" style="background:var(--blue)"></div>${committed.length} committed</div>
+    <div class="zsitem"><div class="zsdot" style="background:var(--purple)"></div>${S.remoteSynced?'remote synced':'not pushed'}</div>
+    <div class="zsitem"><div class="zsdot" style="background:var(--yellow)"></div>${S.stash.length} stashed</div>
+  </div>
+  </div>`;
+  body.innerHTML=h;
+}
+
+// ═══════════════════════════════════════════════════════════
+// CLI INPUT (optional advanced typing)
+// ═══════════════════════════════════════════════════════════
+const CLI=[
+  {re:/^git\s+init$/i,id:'git_init'},{re:/^git\s+config\b/i,id:'git_config'},
+  {re:/^git\s+status(\s+-s|\s+--short)?$/i,id:'git_status'},
+  {re:/^git\s+diff(\s+--staged|\s+--cached)?(\s+\S+)?$/i,id:'git_diff'},
+  {re:/^git\s+add\s+\.$|^git\s+add\s+-A$|^git\s+add\s+--all$/i,id:'git_add_all'},
+  {re:/^git\s+add\s+\S+(\s+\S+)*$/i,id:'git_add_file'},
+  {re:/^git\s+restore\s+--staged/i,id:'git_restore_staged'},
+  {re:/^git\s+commit\s+--amend/i,id:'git_commit_amend'},
+  {re:/^git\s+commit\s+-am\s+/i,id:'git_commit'},          // commit -am "msg" (add+commit combo)
+  {re:/^git\s+commit\s+-m\s+/i,id:'git_commit'},
+  {re:/^git\s+commit$/i,id:'git_commit'},                   // bare commit (opens editor)
+  {re:/^git\s+log(\s+--oneline)?(\s+--graph)?(\s+-\d+)?$/i,id:'git_log'},
+  {re:/^git\s+show\b/i,id:'git_log'},                       // git show ~ similar to log for this sim
+  {re:/^git\s+clone\s+\S+(\s+\S+)?$/i,id:'git_clone'},
+  {re:/^git\s+remote\s+add\s+\S+\s+\S+$/i,id:'git_remote_add'},
+  {re:/^git\s+remote(\s+-v)?$/i,id:'git_remote_add'},
+  {re:/^git\s+fetch(\s+\S+)?(\s+\S+)?$/i,id:'git_fetch'},
+  {re:/^git\s+push\s+--tags$/i,id:'git_push_tags'},
+  {re:/^git\s+push\s+-u\s+origin\s+\S+$/i,id:'git_push'},   // push -u origin <branch>
+  {re:/^git\s+push(\s+origin)?(\s+\S+)?(\s+--force|\s+-f)?$/i,id:'git_push'},
+  {re:/^git\s+pull(\s+origin)?(\s+\S+)?(\s+--rebase)?$/i,id:'git_pull'},
+  {re:/^git\s+checkout\s+-b\s+\S+/i,id:'git_checkout_b'},
+  {re:/^git\s+switch\s+-c\s+\S+/i,id:'git_checkout_b'},     // switch -c (modern equivalent)
+  {re:/^git\s+checkout\s+--\s+\S+/i,id:'git_checkout_file'},
+  {re:/^git\s+checkout\s+\S+/i,id:'git_checkout'},
+  {re:/^git\s+switch\s+\S+/i,id:'git_checkout'},            // switch <branch> (modern equivalent)
+  {re:/^git\s+branch\s+-[dD]\s*\S*/i,id:'git_branch_d'},
+  {re:/^git\s+branch\s+--delete\b/i,id:'git_branch_d'},
+  {re:/^git\s+branch(\s+-a|\s+--all|\s+-v|\s+\S+)?$/i,id:'git_branch'},
+  {re:/^git\s+merge\s+\S+(\s+--no-ff)?$/i,id:'git_merge'},
+  {re:/^git\s+reset\s+--hard(\s+\S+)?$/i,id:'git_reset_hard'},
+  {re:/^git\s+reset\s+--soft(\s+\S+)?$/i,id:'git_reset_soft'},
+  {re:/^git\s+reset(\s+HEAD)?(\s+\S+)?$/i,id:'git_restore_staged'}, // bare reset ~ unstage
+  {re:/^git\s+revert\s+\S+(\s+--no-edit)?$/i,id:'git_revert'},
+  {re:/^git\s+stash\s+(pop|apply)\b/i,id:'git_stash_pop'},
+  {re:/^git\s+stash\s+(list|show)\b/i,id:'git_stash_list'},
+  {re:/^git\s+stash(\s+save\b.*|\s+push\b.*)?$/i,id:'git_stash'},
+  {re:/^git\s+rebase\s+-i/i,id:'git_rebase_i'},
+  {re:/^git\s+rebase(\s+--continue|\s+--abort)?(\s+\S+)?$/i,id:'git_rebase'},
+  {re:/^git\s+cherry-pick(\s+--abort|\s+--continue)?\s*\S*$/i,id:'git_cherry_pick'},
+  {re:/^git\s+tag(\s+-a)?(\s+\S+)?(\s+-m\s+.+)?$/i,id:'git_tag'},
+  {re:/^git\s+clean(\s+-[a-z]+)*$/i,id:'git_clean'},
+  {re:/^git\s+submodule\b/i,id:'git_submodule'},
+  {re:/^git\s+bisect\b/i,id:'git_bisect'},
+  {re:/^git\s+rm\s+--cached\s+\S+/i,id:'git_restore_staged'},
+  {re:/^git\s+blame\b/i,id:'git_log'},
+  {re:/^git\s+mv\s+\S+\s+\S+/i,id:'git_add_file'},
+];
+
+document.getElementById('cliInput').addEventListener('keydown',function(e){
+  if(e.key!=='Enter')return;
+  const v=this.value.trim();if(!v)return;
+  if(!/^git\b/i.test(v)){addOut([{c:'oe',t:`Command not found: ${v.split(' ')[0]}. Did you mean to start with 'git'?`}]);return;}
+  const match=CLI.find(p=>p.re.test(v));
+  if(!match){addOut([{c:'oe',t:`git: '${v.split(' ')[1]||v}' is not a git command. See 'git --help'.`}]);return;}
+  const cmd=CMD_MAP[match.id];if(!cmd)return;
+  selectCmd(cmd,false);
+  runCurrent();
+  checkChallenge();
+  this.value='';
+});
+
+// ═══════════════════════════════════════════════════════════
+// GUIDE
+// ═══════════════════════════════════════════════════════════
+const GUIDE=[
+  {id:'intro',label:'🔰 Git & GitHub',content:`
+    <div class="g-h"><span>01</span> What is Git?</div>
+    <div class="g-p">Git is a <strong>distributed version control system</strong>. Every commit is a save point you can return to — like a time machine for your code.</div>
+    <div class="g-tip">💡 Like Google Docs version history, but for code, works offline, and infinitely more powerful.</div>
+    <div class="g-h"><span>02</span> What is GitHub?</div>
+    <div class="g-p">GitHub is the cloud platform hosting Git repositories. Git = the tool on your computer. GitHub = the social network where repos live online.</div>
+    <div class="g-h"><span>03</span> Key Terms</div>
+    <table class="g-table"><tr><th>Term</th><th>Meaning</th></tr>
+    <tr><td>Repository</td><td>A project folder tracked by Git. Contains all files + full history.</td></tr>
+    <tr><td>Commit</td><td>A permanent snapshot. Like a game save point.</td></tr>
+    <tr><td>Branch</td><td>Parallel line of development. "main" is the default.</td></tr>
+    <tr><td>Clone</td><td>Download a full copy of a remote repo with all history.</td></tr>
+    <tr><td>Staging Area</td><td>Preview zone — choose which changes go into next commit.</td></tr>
+    <tr><td>Remote</td><td>The copy of your repo on GitHub.</td></tr>
+    <tr><td>HEAD</td><td>Pointer to your current position in history.</td></tr>
+    <tr><td>Origin</td><td>Default nickname for the remote GitHub URL.</td></tr>
+    </table>`},
+  {id:'workflow',label:'🔄 Workflow',content:`
+    <div class="g-h"><span>📷</span> Complete Git Workflow at a Glance</div>
+    <div class="g-p">This single diagram shows the entire journey of a file — from your editor, all the way to GitHub, and back.</div>
+    <div style="background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px;margin:10px 0;overflow-x:auto">
+      <svg viewBox="0 0 720 200" style="width:100%;min-width:640px;display:block" role="img" aria-label="Diagram showing files moving from Working Directory to Staging Area to Local Repository to GitHub Remote and back via git add, git commit, git push, and git pull">
+        <!-- Zone boxes -->
+        <g font-family="Inter,sans-serif">
+          <!-- Working Dir -->
+          <rect x="10" y="40" width="140" height="100" rx="10" fill="var(--bg)" stroke="var(--orange)" stroke-width="2"/>
+          <text x="80" y="70" text-anchor="middle" font-size="22">📝</text>
+          <text x="80" y="95" text-anchor="middle" font-size="12" font-weight="700" fill="var(--orange)">Working</text>
+          <text x="80" y="110" text-anchor="middle" font-size="12" font-weight="700" fill="var(--orange)">Directory</text>
+          <text x="80" y="128" text-anchor="middle" font-size="9" fill="var(--text-dim)">edit files</text>
+
+          <!-- Staging -->
+          <rect x="200" y="40" width="140" height="100" rx="10" fill="var(--bg)" stroke="var(--blue)" stroke-width="2"/>
+          <text x="270" y="70" text-anchor="middle" font-size="22">📋</text>
+          <text x="270" y="95" text-anchor="middle" font-size="12" font-weight="700" fill="var(--blue)">Staging</text>
+          <text x="270" y="110" text-anchor="middle" font-size="12" font-weight="700" fill="var(--blue)">Area</text>
+          <text x="270" y="128" text-anchor="middle" font-size="9" fill="var(--text-dim)">index</text>
+
+          <!-- Local Repo -->
+          <rect x="390" y="40" width="140" height="100" rx="10" fill="var(--bg)" stroke="var(--green)" stroke-width="2"/>
+          <text x="460" y="70" text-anchor="middle" font-size="22">🗄️</text>
+          <text x="460" y="95" text-anchor="middle" font-size="12" font-weight="700" fill="var(--green)">Local</text>
+          <text x="460" y="110" text-anchor="middle" font-size="12" font-weight="700" fill="var(--green)">Repository</text>
+          <text x="460" y="128" text-anchor="middle" font-size="9" fill="var(--text-dim)">.git history</text>
+
+          <!-- Remote -->
+          <rect x="570" y="40" width="140" height="100" rx="10" fill="var(--bg)" stroke="var(--purple)" stroke-width="2"/>
+          <text x="640" y="70" text-anchor="middle" font-size="22">🌐</text>
+          <text x="640" y="95" text-anchor="middle" font-size="12" font-weight="700" fill="var(--purple)">Remote</text>
+          <text x="640" y="110" text-anchor="middle" font-size="12" font-weight="700" fill="var(--purple)">(GitHub)</text>
+          <text x="640" y="128" text-anchor="middle" font-size="9" fill="var(--text-dim)">shared copy</text>
+
+          <!-- Forward arrows + labels -->
+          <line x1="150" y1="75" x2="198" y2="75" stroke="var(--text-dim)" stroke-width="2" marker-end="url(#arrow)"/>
+          <text x="174" y="62" text-anchor="middle" font-size="10" font-family="JetBrains Mono,monospace" fill="var(--green)">git add</text>
+
+          <line x1="340" y1="75" x2="388" y2="75" stroke="var(--text-dim)" stroke-width="2" marker-end="url(#arrow)"/>
+          <text x="364" y="62" text-anchor="middle" font-size="10" font-family="JetBrains Mono,monospace" fill="var(--green)">git commit</text>
+
+          <line x1="530" y1="75" x2="568" y2="75" stroke="var(--text-dim)" stroke-width="2" marker-end="url(#arrow)"/>
+          <text x="549" y="62" text-anchor="middle" font-size="10" font-family="JetBrains Mono,monospace" fill="var(--green)">git push</text>
+
+          <!-- Return arrow: pull (Remote -> Working Dir, curved underneath) -->
+          <path d="M640 145 C640 185, 80 185, 80 145" fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-dasharray="5,4" marker-end="url(#arrow2)"/>
+          <text x="360" y="178" text-anchor="middle" font-size="10" font-family="JetBrains Mono,monospace" fill="var(--text-dim)">git pull origin main</text>
+        </g>
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--text-dim)"/></marker>
+          <marker id="arrow2" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="var(--text-muted)"/></marker>
+        </defs>
+      </svg>
+    </div>
+    <div class="g-tip">💡 Forward flow (add → commit → push) is how YOUR changes go out. The dashed pull arrow is how OTHERS' changes come back in.</div>
+
+    <div class="g-h"><span>The 3 Zones</span></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;margin:11px 0">
+      <div style="background:#f3f5fb;border:1px solid var(--border);border-radius:6px;padding:11px;text-align:center"><div style="font-size:22px">📝</div><div style="font-weight:600;color:var(--orange);margin:4px 0;font-size:12px">Working Dir</div><div style="font-size:11px;color:var(--text-dim)">Where you edit files</div></div>
+      <div style="background:#f3f5fb;border:1px solid var(--border);border-radius:6px;padding:11px;text-align:center"><div style="font-size:22px">📋</div><div style="font-weight:600;color:var(--blue);margin:4px 0;font-size:12px">Staging Area</div><div style="font-size:11px;color:var(--text-dim)">Next commit preview</div></div>
+      <div style="background:#f3f5fb;border:1px solid var(--border);border-radius:6px;padding:11px;text-align:center"><div style="font-size:22px">🗄️</div><div style="font-weight:600;color:var(--green);margin:4px 0;font-size:12px">Repository</div><div style="font-size:11px;color:var(--text-dim)">Permanent history</div></div>
+    </div>
+    <div class="g-code">Working Dir ─── git add ──→ Staging ─── git commit ──→ .git Repo
+   .git Repo ─── git push ──→ GitHub (Remote)
+      GitHub ─── git pull  ──→ Working Dir</div>
+    <div class="g-h">Daily Workflow</div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+    ${[['1','Pull latest','git pull origin main'],['2','Create branch','git checkout -b feature/x'],['3','Edit files','(write your code)'],['4','Stage','git add .'],['5','Commit','git commit -m "Add feature"'],['6','Push','git push origin feature/x'],['7','Pull Request','(on GitHub.com)']]
+    .map(([n,d,c])=>`<div style="display:flex;align-items:center;gap:8px;padding:7px;background:var(--bg);border:1px solid var(--border);border-radius:6px">
+      <span style="background:var(--blue-dim);color:#fff;width:19px;height:19px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">${n}</span>
+      <span style="font-size:12px;color:var(--text-dim);flex:1">${d}</span>
+      <code style="font-family:JetBrains Mono,monospace;font-size:10px;color:var(--green)">${c}</code>
+    </div>`).join('')}
+    </div>`},
+  {id:'remote',label:'🌐 Remote & GitHub',content:`
+    <div class="g-h"><span>Remote Commands</span></div>
+    <table class="g-table"><tr><th>Command</th><th>What it does</th></tr>
+    <tr><td>git clone &lt;URL&gt;</td><td>Full copy of repo with all history. Auto-sets origin.</td></tr>
+    <tr><td>git remote add origin &lt;URL&gt;</td><td>Links local repo to GitHub URL.</td></tr>
+    <tr><td>git remote -v</td><td>Show remote URLs configured.</td></tr>
+    <tr><td>git fetch origin</td><td>Download remote state without merging. Preview first.</td></tr>
+    <tr><td>git push origin &lt;branch&gt;</td><td>Upload commits to GitHub.</td></tr>
+    <tr><td>git pull origin &lt;branch&gt;</td><td>Fetch + merge remote changes in one command.</td></tr>
+    <tr><td>git push --tags</td><td>Push all tags to GitHub (shows as Releases).</td></tr>
+    </table>
+    <div class="g-tip">💡 Golden rule: git pull before you start coding each day. Pull before you push.</div>
+    <div class="g-h">Clone vs Fork vs Pull</div>
+    <div style="display:flex;flex-direction:column;gap:7px">
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 13px"><strong style="color:var(--blue)">Clone</strong> — Copy repo to your machine (same organization/owner).</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 13px"><strong style="color:var(--purple)">Fork</strong> — Create YOUR copy of someone else's repo on GitHub (for open source PRs).</div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:9px 13px"><strong style="color:var(--green)">Pull</strong> — Sync your local branch with latest remote changes.</div>
+    </div>`},
+  {id:'commands',label:'📦 All Commands',content:`
+    <table class="g-table"><tr><th>Command</th><th>What it does</th><th>Safe?</th></tr>
+    <tr><td>git init</td><td>Create .git folder. Start tracking.</td><td>✅</td></tr>
+    <tr><td>git status</td><td>Show staged/modified/untracked files.</td><td>✅</td></tr>
+    <tr><td>git diff</td><td>Show exact line changes not staged.</td><td>✅</td></tr>
+    <tr><td>git add .</td><td>Stage all changes.</td><td>✅</td></tr>
+    <tr><td>git add &lt;file&gt;</td><td>Stage one file.</td><td>✅</td></tr>
+    <tr><td>git restore --staged &lt;f&gt;</td><td>Unstage file, keep changes.</td><td>✅</td></tr>
+    <tr><td>git commit -m "msg"</td><td>Save staged snapshot.</td><td>✅</td></tr>
+    <tr><td>git commit --amend</td><td>Rewrite last commit.</td><td>⚠️</td></tr>
+    <tr><td>git log --oneline</td><td>Compact history.</td><td>✅</td></tr>
+    <tr><td>git clone &lt;url&gt;</td><td>Download full repo.</td><td>✅</td></tr>
+    <tr><td>git remote add origin</td><td>Link to GitHub.</td><td>✅</td></tr>
+    <tr><td>git fetch</td><td>Download without merging.</td><td>✅</td></tr>
+    <tr><td>git push</td><td>Upload commits.</td><td>✅</td></tr>
+    <tr><td>git pull</td><td>Download + merge.</td><td>✅</td></tr>
+    <tr><td>git branch &lt;name&gt;</td><td>Create branch.</td><td>✅</td></tr>
+    <tr><td>git checkout &lt;name&gt;</td><td>Switch branch.</td><td>✅</td></tr>
+    <tr><td>git checkout -b &lt;name&gt;</td><td>Create + switch.</td><td>✅</td></tr>
+    <tr><td>git merge &lt;branch&gt;</td><td>Merge into current.</td><td>✅</td></tr>
+    <tr><td>git branch -d &lt;name&gt;</td><td>Delete branch.</td><td>✅</td></tr>
+    <tr><td>git checkout -- &lt;file&gt;</td><td>Discard file changes.</td><td>⚠️</td></tr>
+    <tr><td>git reset --soft HEAD~1</td><td>Undo commit, keep staged.</td><td>⚠️</td></tr>
+    <tr><td>git reset --hard HEAD~1</td><td>Undo commit + discard.</td><td>❌</td></tr>
+    <tr><td>git revert &lt;hash&gt;</td><td>Safe undo via new commit.</td><td>✅</td></tr>
+    <tr><td>git stash</td><td>Save WIP aside.</td><td>✅</td></tr>
+    <tr><td>git stash pop</td><td>Restore WIP.</td><td>✅</td></tr>
+    <tr><td>git rebase main</td><td>Linear history.</td><td>⚠️</td></tr>
+    <tr><td>git cherry-pick &lt;hash&gt;</td><td>Apply one commit.</td><td>✅</td></tr>
+    <tr><td>git tag -a v1.0</td><td>Create version tag.</td><td>✅</td></tr>
+    <tr><td>git clean -fd</td><td>Delete untracked files.</td><td>❌</td></tr>
+    <tr><td>git rebase -i HEAD~3</td><td>Interactive rebase.</td><td>⚠️</td></tr>
+    <tr><td>git bisect</td><td>Find bug commit.</td><td>✅</td></tr>
+    </table>`},
+  {id:'branches',label:'🌿 Branches',content:`
+    <div class="g-h"><span>Why Branch?</span></div>
+    <div class="g-p">Branches let features be built in parallel without touching production code.</div>
+    <div class="g-code">main  ●────────────●──────● (always stable)
+           \          /
+feature     ●──●──●        (isolated work)</div>
+    <div class="g-tip">💡 Convention: feature/login, bugfix/crash, hotfix/payment, release/v2.0</div>
+    <div class="g-warn">⚠️ Never commit directly to main. Always branch + merge via Pull Request.</div>`},
+  {id:'undo',label:'↩️ Undoing',content:`
+    <div class="g-h"><span>Undo Decision Tree</span></div>
+    <table class="g-table"><tr><th>Situation</th><th>Command</th><th>Safe?</th></tr>
+    <tr><td>Unstage file</td><td>git restore --staged &lt;f&gt;</td><td>✅</td></tr>
+    <tr><td>Discard file edits</td><td>git checkout -- &lt;f&gt;</td><td>⚠️ irreversible</td></tr>
+    <tr><td>Undo commit (keep staged)</td><td>git reset --soft HEAD~1</td><td>✅</td></tr>
+    <tr><td>Undo commit (discard all)</td><td>git reset --hard HEAD~1</td><td>❌ dangerous</td></tr>
+    <tr><td>Undo pushed commit</td><td>git revert &lt;hash&gt;</td><td>✅ safest</td></tr>
+    </table>
+    <div class="g-tip">💡 Rule: Use git revert on any commit already pushed. Use reset only on local private branches.</div>`},
+  {id:'advanced',label:'⚡ Advanced',content:`
+    <div class="g-h"><span>Stash</span></div>
+    <div class="g-code">git stash              # Save WIP
+git stash pop          # Restore
+git stash list         # See all entries
+git stash apply 0      # Apply without removing</div>
+    <div class="g-h">Rebase vs Merge</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:9px 0">
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:10px"><div style="color:var(--blue);font-weight:600;margin-bottom:4px;font-size:12px">Merge</div><div style="font-size:11px;color:var(--text-dim);line-height:1.6">Creates merge commit. History preserved. Best for shared branches.</div></div>
+    <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:10px"><div style="color:var(--purple);font-weight:600;margin-bottom:4px;font-size:12px">Rebase</div><div style="font-size:11px;color:var(--text-dim);line-height:1.6">Linear history. Rewrites commits. Best for local feature branches.</div></div>
+    </div>
+    <div class="g-code">git cherry-pick &lt;hash&gt;       # Apply one commit
+git tag -a v1.0 -m "release"  # Create version tag
+git push --tags               # Push tags to GitHub
+git rebase -i HEAD~3          # Squash/reorder commits</div>
+    <div class="g-warn">⚠️ Never rebase or amend commits already pushed to a shared branch!</div>`},
+  {id:'practices',label:'✅ Best Practices',content:`
+    <table class="g-table"><tr><th>✅ Do</th><th>❌ Don't</th></tr>
+    <tr><td>Commit often with clear messages</td><td>Commit passwords or .env files</td></tr>
+    <tr><td>Always branch for features</td><td>Force push to main/shared branches</td></tr>
+    <tr><td>Pull before you push</td><td>Use --hard on pushed commits</td></tr>
+    <tr><td>Keep branches small & focused</td><td>Commit node_modules or build folders</td></tr>
+    <tr><td>Use git revert on public branches</td><td>Rebase shared branches</td></tr>
+    </table>
+    <div class="g-h">.gitignore</div>
+    <div class="g-code">node_modules/
+.env
+*.log
+dist/
+.DS_Store</div>
+    <div class="g-tip">💡 Visit gitignore.io to auto-generate .gitignore for your tech stack!</div>
+
+    <div class="g-h"><span>📌</span> Also Worth Knowing</div>
+    <div class="g-p">A couple of things you'll see in real Git that aren't simulated here as "run" steps — because they don't change repo state, so there's nothing to visualize:</div>
+    <table class="g-table"><tr><th>Command / Concept</th><th>What it is</th></tr>
+    <tr><td>git --version</td><td>Checks your installed Git version. One-time setup check, not a workflow command.</td></tr>
+    <tr><td>Git Hooks</td><td>Scripts (pre-commit, commit-msg, pre-push) stored in .git/hooks/ that run automatically. They're files you write, not commands you type — see Expert section above for details.</td></tr>
+    </table>
+    <div class="g-tip">💡 Everything else from init to bisect — 38 commands total — is fully interactive in this visualizer.</div>`},
+];
+
+let activeG='intro';
+function openGuide(){document.getElementById('gOverlay').classList.remove('hidden');buildGNav();renderGContent(activeG);}
+function closeGuide(){document.getElementById('gOverlay').classList.add('hidden');}
+function closeGuideOuter(e){if(e.target===document.getElementById('gOverlay'))closeGuide();}
+
+// ── HOW TO USE MODAL ─────────────────────────────────────
+function openHowTo(){document.getElementById('howtoOverlay').classList.remove('hidden');}
+function closeHowTo(){
+  document.getElementById('howtoOverlay').classList.add('hidden');
+  try{localStorage.setItem('gitviz_seen_howto','1');}catch(e){}
+}
+function closeHowToOuter(e){if(e.target===document.getElementById('howtoOverlay'))closeHowTo();}
+function buildGNav(){document.getElementById('gNav').innerHTML=GUIDE.map(s=>`<button class="g-nav-btn ${s.id===activeG?'active':''}" onclick="renderGContent('${s.id}')">${s.label}</button>`).join('');}
+function renderGContent(id){activeG=id;document.getElementById('gBody').innerHTML=GUIDE.find(s=>s.id===id)?.content||'';buildGNav();}
+
+// ═══════════════════════════════════════════════════════════
+// RESET
+// ═══════════════════════════════════════════════════════════
+function _resetRepoState(message){
+  S.init=false; S.branch='main'; S.branches=['main'];
+  S.files=[]; S.commits=[]; S.stash=[]; S.tags=[];
+  S.remote=null; S.remoteSynced=false; S.tab='code';
+  S.selCmd=null; S.ranCmds=new Set(); S.lastRan=null;
+  S.stepIdx=0; S.configSet=false;
+
+  document.getElementById('outScroll').innerHTML=`<div class="ol od">${message}</div>`;
+  document.querySelectorAll('.cmd-card').forEach(c=>c.classList.remove('active','suggested'));
+  document.getElementById('nextPanel').classList.remove('visible');
+  setTab('code');
+  selectCmd(ALL_CMDS[0], false);
+  renderStatus();
+  renderProgress();
+}
+
+function resetVisualizer(){
+  if(!confirm('Reset everything and start over? This clears your simulated repo, commits, branches, and progress.'))return;
+  _resetRepoState('Visualizer reset. Click Next → to start the guided tour again.');
+  exitChallenge();
+}
+
+// ═══════════════════════════════════════════════════════════
+// MOBILE PANE SWITCHER
+// ═══════════════════════════════════════════════════════════
+function setMobilePane(pane){
+  document.querySelectorAll('.mob-tab').forEach(b=>b.classList.toggle('active', b.dataset.pane===pane));
+  const main=document.querySelector('.main');
+  if(pane==='left'){main.classList.remove('show-right');main.classList.add('show-left');}
+  else{main.classList.remove('show-left');main.classList.add('show-right');}
+}
+
+// ═══════════════════════════════════════════════════════════
+// CHALLENGE MODE
+// ═══════════════════════════════════════════════════════════
+const CHALLENGES=[
+  // ── QUICK CHALLENGES (single concept) ──
+  {
+    id:'c1', tier:'quick', title:'Initialize & First Commit',
+    desc:'Set up a brand new repo and make your very first commit.',
+    hint:'Try: git init → git add . → git commit -m "..."',
+    check:()=>S.init && S.commits.length>=1,
+  },
+  {
+    id:'c2', tier:'quick', title:'Stage One File',
+    desc:'Get exactly one file into the staging area (not committed yet).',
+    hint:'Try: git init, then git add <file> (just one file, not git add .)',
+    check:()=>{
+      const staged=S.files.filter(f=>f.staged&&!f.committed);
+      return S.init && staged.length>=1;
+    },
+  },
+  {
+    id:'c3', tier:'quick', title:'Create a New Branch',
+    desc:'Create a second branch without switching to it.',
+    hint:'Try: git init → git branch <name>. Make sure you stay on main.',
+    check:()=>S.init && S.branches.length>=2,
+  },
+  {
+    id:'c4', tier:'quick', title:'Switch Branches',
+    desc:'Create a branch, then switch your current branch (HEAD) to it.',
+    hint:'Try: git checkout -b <new-branch> — creates AND switches in one step.',
+    check:()=>S.init && S.branches.length>=2 && S.branch!=='main',
+  },
+  {
+    id:'c5', tier:'quick', title:'Merge a Branch',
+    desc:'Merge another branch into your current branch.',
+    hint:'Try: git branch → git checkout -b → git commit → git checkout main → git merge <branch>',
+    check:()=>S.init && S.branches.length>=2 && S.ranCmds.has('git_merge'),
+  },
+  {
+    id:'c6', tier:'quick', title:'Push to GitHub',
+    desc:'Get your local commits fully synced with a remote (GitHub).',
+    hint:'Try: git init → git add . → git commit → git push',
+    check:()=>S.init && S.remoteSynced && S.commits.length>=1,
+  },
+  {
+    id:'c7', tier:'quick', title:'Tag a Release',
+    desc:'Create at least one version tag on a commit.',
+    hint:'Try: git init → git add . → git commit → git tag -a v1.0',
+    check:()=>S.init && S.tags.length>=1,
+  },
+  {
+    id:'c8', tier:'quick', title:'Stash & Restore',
+    desc:'Stash your changes away, then bring them back.',
+    hint:'Try: git init → git stash → git stash pop. End with stash empty but you used it.',
+    check:()=>S.init && S.ranCmds.has('git_stash') && S.ranCmds.has('git_stash_pop') && S.stash.length===0,
+  },
+  {
+    id:'c9', tier:'quick', title:'Undo a Commit Safely',
+    desc:'Undo a commit without destroying its history — using the safe method.',
+    hint:'Try: make a commit, then git revert <hash>. (Avoid reset --hard — that destroys history!)',
+    check:()=>S.init && S.ranCmds.has('git_revert'),
+  },
+  {
+    id:'c10', tier:'quick', title:'Clean Working Tree',
+    desc:'Reach a state where git status would say "nothing to commit, working tree clean" — with at least one commit made.',
+    hint:'Stage and commit everything: git add . → git commit. No staged/modified/untracked files left.',
+    check:()=>{
+      if(!S.init || !S.commits.length) return false;
+      const dirty=S.files.some(f=>!f.committed || f.staged || f.modified);
+      return !dirty;
+    },
+  },
+
+  // ── WORKFLOW CHALLENGES (chain multiple commands — real-world tasks) ──
+  {
+    id:'w1', tier:'workflow', title:'Feature Branch Workflow',
+    desc:'Create a feature branch, commit work on it, switch back to main, and merge your feature in. This is the core daily Git loop.',
+    hint:'git checkout -b <branch> → git add . → git commit -m "..." → git checkout main → git merge <branch>',
+    check:()=>S.init && S.branches.length>=2
+      && S.ranCmds.has('git_checkout_b')
+      && S.ranCmds.has('git_commit')
+      && S.ranCmds.has('git_checkout')
+      && S.ranCmds.has('git_merge'),
+  },
+  {
+    id:'w2', tier:'workflow', title:'Fix & Re-push',
+    desc:'Commit your work, realize you made a mistake, fix the last commit with amend, then push everything to GitHub.',
+    hint:'git add . → git commit -m "..." → git commit --amend -m "..." → git push',
+    check:()=>S.init
+      && S.ranCmds.has('git_commit')
+      && S.ranCmds.has('git_commit_amend')
+      && S.remoteSynced,
+  },
+  {
+    id:'w3', tier:'workflow', title:'Save & Resume Work',
+    desc:'Stash in-progress changes, switch to another branch and back, then restore your stashed work where you left off.',
+    hint:'git stash → git checkout <other-branch> → git checkout <original-branch> → git stash pop',
+    check:()=>S.init
+      && S.ranCmds.has('git_stash')
+      && S.ranCmds.has('git_checkout')
+      && S.ranCmds.has('git_stash_pop')
+      && S.stash.length===0,
+  },
+  {
+    id:'w4', tier:'workflow', title:'Release Workflow',
+    desc:'Commit your work, tag it as a version release, then push both your commits AND your tags to GitHub.',
+    hint:'git add . → git commit -m "..." → git tag -a v1.0 -m "..." → git push → git push --tags',
+    check:()=>S.init
+      && S.commits.length>=1
+      && S.tags.length>=1
+      && S.remoteSynced
+      && S.ranCmds.has('git_push_tags'),
+  },
+  {
+    id:'w5', tier:'workflow', title:'Oops, Undo & Redo',
+    desc:'Make a commit, undo it safely (keeping the changes), then re-commit it properly — ending with a clean working tree.',
+    hint:'git add . → git commit -m "..." → git reset --soft HEAD~1 → git add . → git commit -m "better message"',
+    check:()=>{
+      if(!S.init || !S.ranCmds.has('git_reset_soft') || !S.ranCmds.has('git_commit') || !S.commits.length) return false;
+      const dirty=S.files.some(f=>!f.committed || f.staged || f.modified);
+      return !dirty;
+    },
+  },
+  {
+    id:'w6', tier:'workflow', title:'Edit, Inspect, Commit',
+    desc:'This is the #1 daily loop: edit a file you already committed, inspect what changed with status & diff, then stage and commit the update.',
+    hint:'git init → git add . → git commit → ✏️ Edit a tracked file → git status → git diff → git add . → git commit',
+    check:()=>{
+      if(!S.init || !S.ranCmds.has('git_edit_file') || !S.ranCmds.has('git_status') || !S.ranCmds.has('git_diff')) return false;
+      if(S.commits.length<2) return false;
+      const dirty=S.files.some(f=>!f.committed || f.staged || f.modified);
+      return !dirty;
+    },
+  },
+];
+
+let activeChallenge=null;
+let pendingChallenge=null;
+let hintVisible=false;
+const solvedChallenges=new Set();
+
+function openChallenges(){
+  document.getElementById('challengeOverlay').classList.remove('hidden');
+  renderChallengeList();
+}
+function closeChallenges(){document.getElementById('challengeOverlay').classList.add('hidden');}
+function closeChallengeOuter(e){if(e.target===document.getElementById('challengeOverlay'))closeChallenges();}
+
+function renderChallengeList(){
+  const list=document.getElementById('challengeList');
+  const quick=CHALLENGES.filter(c=>c.tier==='quick');
+  const workflow=CHALLENGES.filter(c=>c.tier==='workflow');
+
+  function cardHtml(c,num){
+    const solved=solvedChallenges.has(c.id);
+    return `<div class="chal-card ${c.tier==='workflow'?'workflow':''} ${solved?'solved':''}" role="button" tabindex="0" onclick="startChallenge('${c.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();startChallenge('${c.id}')}">
+      <div class="chal-head">
+        <span class="chal-num">${solved?'✓':num}</span>
+        <span class="chal-title">${esc(c.title)}</span>
+        <span class="chal-badge ${solved?'done':'todo'}">${solved?'Solved':'Try it'}</span>
+      </div>
+      <div class="chal-desc">${esc(c.desc)}</div>
+    </div>`;
+  }
+
+  let html=`<div class="chal-section-lbl">🎯 Quick Challenges <span class="chal-section-sub">— one concept at a time</span></div>`;
+  html+=quick.map((c,i)=>cardHtml(c,i+1)).join('');
+  html+=`<div class="chal-section-lbl">🔗 Workflow Challenges <span class="chal-section-sub">— chain 4-5 commands like a real task, great for revision</span></div>`;
+  html+=workflow.map((c,i)=>cardHtml(c,i+1)).join('');
+
+  list.innerHTML=html;
+}
+
+// ── Briefing modal (shown before a challenge starts) ──
+function startChallenge(id){
+  const c=CHALLENGES.find(x=>x.id===id);
+  if(!c)return;
+  pendingChallenge=c;
+  closeChallenges();
+  const idx=CHALLENGES.filter(x=>x.tier===c.tier).findIndex(x=>x.id===c.id)+1;
+  document.getElementById('briefNum').textContent=(c.tier==='workflow'?'🔗 Workflow Challenge #':'🎯 Quick Challenge #')+idx;
+  document.getElementById('briefTitle').textContent=c.title;
+  document.getElementById('briefDesc').textContent=c.desc;
+  document.getElementById('briefOverlay').classList.remove('hidden');
+}
+function closeBrief(){
+  pendingChallenge=null;
+  document.getElementById('briefOverlay').classList.add('hidden');
+}
+function closeBriefOuter(e){if(e.target===document.getElementById('briefOverlay'))closeBrief();}
+
+function confirmStartChallenge(){
+  if(!pendingChallenge)return;
+  const c=pendingChallenge;
+  document.getElementById('briefOverlay').classList.add('hidden');
+  pendingChallenge=null;
+
+  _resetRepoState(`🎯 Challenge started: ${c.title} — repo reset to a clean slate.`);
+  _activateChallenge(c);
+}
+
+function _activateChallenge(c){
+  activeChallenge=c;
+  hintVisible=false;
+  const banner=document.getElementById('challengeBanner');
+  document.getElementById('challengeTitle').textContent=c.title;
+  document.getElementById('challengeDesc').textContent=c.desc;
+  const hintEl=document.getElementById('challengeHint');
+  hintEl.textContent='';
+  hintEl.classList.add('hidden');
+  document.getElementById('hintBtn').classList.remove('active-hint');
+  document.getElementById('hintBtn').textContent='💡 Hint';
+  const status=document.getElementById('challengeStatus');
+  status.textContent='In progress…';
+  status.classList.remove('done');
+  banner.classList.remove('hidden');
+}
+
+function toggleHint(){
+  if(!activeChallenge)return;
+  hintVisible=!hintVisible;
+  const hintEl=document.getElementById('challengeHint');
+  const btn=document.getElementById('hintBtn');
+  if(hintVisible){
+    hintEl.textContent='💡 '+activeChallenge.hint;
+    hintEl.classList.remove('hidden');
+    btn.classList.add('active-hint');
+    btn.textContent='💡 Hide Hint';
+  } else {
+    hintEl.classList.add('hidden');
+    btn.classList.remove('active-hint');
+    btn.textContent='💡 Hint';
+  }
+}
+
+function restartChallenge(){
+  if(!activeChallenge)return;
+  if(!confirm('Restart this challenge? This resets your simulated repo back to a clean slate.'))return;
+  const c=activeChallenge;
+  _resetRepoState(`🔄 Challenge restarted: ${c.title} — repo reset to a clean slate.`);
+  _activateChallenge(c);
+}
+
+function exitChallenge(){
+  activeChallenge=null;
+  hintVisible=false;
+  document.getElementById('challengeBanner').classList.add('hidden');
+}
+
+function checkChallenge(){
+  if(!activeChallenge)return;
+  if(activeChallenge.check()){
+    const status=document.getElementById('challengeStatus');
+    if(!solvedChallenges.has(activeChallenge.id)){
+      solvedChallenges.add(activeChallenge.id);
+      addOut([{c:'os',t:`🎉 Challenge complete: "${activeChallenge.title}"!`}]);
+    }
+    status.textContent='✓ Solved!';
+    status.classList.add('done');
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+buildCmdList();
+renderStatus();
+renderProgress();
+// Select first command without auto-running — user clicks Next to start
+selectCmd(ALL_CMDS[0], false);
+
+// Show "How to Use" automatically on first visit
+try{
+  if(!localStorage.getItem('gitviz_seen_howto')) openHowTo();
+}catch(e){ openHowTo(); }
+</script>
+</body>
+</html>
