@@ -38,7 +38,7 @@ Open the live demo: **[git-visualiser.netlify.app](https://git-visualiser.netlif
 ### Option 2 — Run it locally
 1. Clone this repo:
    ```bash
-   git clone https://github.com/<your-username>/<your-repo-name>.git
+   git clone https://github.com/TejashwiniNM/Git-Visualiser.git
    ```
 2. Open `git-visualizer.html` directly in any modern browser (Chrome, Firefox, Edge, Safari) — just double-click the file, no server needed.
 
